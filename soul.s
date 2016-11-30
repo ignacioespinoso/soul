@@ -1,13 +1,14 @@
-.org 0x0 @olar
+.org 0x0
 .section .iv,"a"
 
 _start:
 
 interrupt_vector:
     b RESET_HANDLER
+.org 0x08
+    b SYSCALL_HANDLER
 .org 0x18
     b IRQ_HANDLER
-
 .org 0x100
 
 .text
@@ -22,6 +23,7 @@ RESET_HANDLER:
     mcr p15, 0, r0, c12, c0, 0
 
 SET_GPT:
+    .set TIME_SZ,               100
     .set GPT_BASE,              0x53FA0000
     .set GPT_CR,                0x0
     .set GPT_PR,                0x4
@@ -39,7 +41,7 @@ SET_GPT:
     str r0, [r1, #GPT_PR]
 
     @ Armazena 100 (valor a ser contabilizado) em GPT_OCR1
-    mov r0, #100
+    ldr r0, =TIME_SZ
     str r0, [r1, #GPT_OCR1]
 
     @ Habilita a interrupcao Output Compare channel
@@ -90,8 +92,28 @@ SET_TZIC:
     @instrucao msr - habilita interrupcoes
     msr  CPSR_c, #0x13       @ SUPERVISOR mode, IRQ/FIQ enabled
 
-espera_interrupcao:
-    b espera_interrupcao
+SET_GPIO:
+    @sets up GPIO
+    .set GPIO_BASE,     0x53F84000
+    .set GPIO_DR,       0x00
+    .set GPIO_GDIR,     0x04
+    .set GPIO_PSR,      0x08
+    .set GDIR_MASK,     0b11111111111111000000000000111110
+
+    ldr r1, =GPIO_BASE
+    ldr r0, =GDIR_MASK
+    str r0, [r1, #GPIO_GDIR] @configures in/out lines in GDIR
+
+SET_STACK:
+    @ sets up corresponding stack in each mode
+    .set STACK_SIZE     0x800 @2048 bytes
+    ldr sp, =SUPERVISOR_STACK
+    mcr CPSR_c, 0xDF
+    ldr sp, =SYSTEM_STACK
+    mcr CPSR_c, 0xD2
+    ldr sp, =IRQ_STACK
+    mcr CPSR_c, 0x10
+    ldr sp, =USER_STACK
 
 IRQ_HANDLER:
     .set GPT_SR,                0x53FA0008
@@ -106,14 +128,42 @@ IRQ_HANDLER:
     ldr r1, [r1]
     mov r0, #1
     add r0, r0, r1
-    l @que merda que eh esse l??
     str r0, [r1]
 
     @ Corrige o valor de LR
     sub lr, lr, #4
-
     movs pc, lr
 
+SYSCALL_HANDLER:
+    @transfers control flow to corresponding syscall
+    cmp r7, #16
+    beq read_sonar
+    cmp r7, #17
+    beq register_proximity_callback
+    cmp r7, #18
+    beq set_motor_speed
+    cmp r7, #19
+    beq set_motors_speed
+    cmp r7, #20
+    beq get_time
+    cmp r7, #21
+    beq set_time
+    cmp r7, #22
+    beq set_alarm
+
 .data
+USER_STACK:
+    .space STACK_SIZE
+
+SYSTEM_STACK:
+    .space STACK_SIZE
+
+SUPERVISOR_STACK:
+    .space STACK_SIZE
+
+IRQ_STACK:
+    .space STACK_SIZE
+
+
 CONTADOR:
     .word 0x0
