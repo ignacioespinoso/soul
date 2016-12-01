@@ -1,5 +1,8 @@
     @ Setting up constants
 
+    @ User code starting point constant
+    .set USER_CODE_ADDRESS,     0x77802000
+
     @ GPT related constants.
     .set GPT_BASE,              0x53FA0000
     .set GPT_CR,                0x0
@@ -11,7 +14,6 @@
 
     @ Time constant.
     .set TIME_SZ,               100
-
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -29,10 +31,9 @@
     .set GDIR_MASK,             0b11111111111111000000000000111110
 
     @ stack size constant.
-    .set STACK_SIZE             0x800 @2048 bytes
+    .set STACK_SIZE,             0x800 @2048 bytes
 
     @ Sonar constants.
-
     .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
     .set ZERO_TRIGGER_MASK      0b11111111111111111111111111111101
 
@@ -137,12 +138,15 @@ SET_GPIO:
 SET_STACK:
     @ Sets up corresponding stack in each mode
     ldr sp, =SUPERVISOR_STACK
+
     msr CPSR_c, 0xDF
     ldr sp, =SYSTEM_STACK
+
     msr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
+
     msr CPSR_c, 0x10
-    ldr sp, =USER_STACK
+    ldr pc, =USER_CODE_ADDRESS
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @ Handlers                                                                     @
@@ -169,7 +173,7 @@ IRQ_HANDLER:
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
-    msr CPSR_c, 0xD2                            @ Changes to system mode
+    msr CPSR_c, 0x1F                            @ Changes to system mode
 
     @ Transfers control flow to corresponding syscall
     cmp r7, #16
@@ -186,6 +190,9 @@ SYSCALL_HANDLER:
     beq set_time
     cmp r7, #22
     beq set_alarm
+
+    msr CPSR_c, 0x13
+    movs pc, lr
 
 read_sonar:
     ldmfd sp!, {r0} @ desempilha parametro dado e coloca em r0
@@ -311,8 +318,8 @@ read_sonar_error:
 
 end_read_sonar:
     ldmfd sp!, {r4-r11, lr}
+    msr CPSR_c, 0x13
     movs pc, lr
-
 
 set_motor_speed:
     ldmfd sp!, {r0, r1}
@@ -388,14 +395,14 @@ set_motors_speed:
     bic r2, r2, r3                              @ Sets up the GPIO_DR register.
     orr r1, r2, r1
     ldr r2, =GPIO_BASE
-    str r1, [r2, #GPIO_BASE]
+    str r1, [r2, #GPIO_DR]
 
     b return_zero
 
 get_time:
     ldr r0, =TIME_COUNTER
     ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
-
+    msr CPSR_c, 0x13
     movs pc, lr
 
 set_time:
@@ -403,6 +410,7 @@ set_time:
     ldr r1, =TIME_COUNTER                       @ Gets TIME_COUNTER pointer.
 
     str r0, [r1]                                @ Sets up TIME_COUNTER.
+    msr CPSR_c, 0x13
     movs pc, lr
 
 @@@@@@@@@@@@@@@@@@@@@
@@ -410,22 +418,23 @@ set_time:
 @@@@@@@@@@@@@@@@@@@@@
 return_zero:
     mov r0, #0
+    msr CPSR_c, 0x13
     movs pc, lr
 
 return_minus_one:
     mov r0, #-1
+    msr CPSR_c, 0x13
     movs pc, lr
 
 return_minus_two:
     mov r0, #-2
+    msr CPSR_c, 0x13
     movs pc, lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @ System data                                                                  @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 .data
-USER_STACK:
-    .space STACK_SIZE
 
 SYSTEM_STACK:
     .space STACK_SIZE
