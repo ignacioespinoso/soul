@@ -1,6 +1,6 @@
-    @ setting up constants
+    @ Setting up constants
 
-    @ GPT related constants
+    @ GPT related constants.
     .set GPT_BASE,              0x53FA0000
     .set GPT_CR,                0x0
     .set GPT_PR,                0x4
@@ -9,11 +9,11 @@
     .set GPT_SR,                0x53FA0008
     .set GPT_SR,                0x53FA0008
 
-    @ Time constant
+    @ Time constant.
     .set TIME_SZ,               100
 
 
-    @ TZIC constants
+    @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
     .set TZIC_INTCTRL,          0x0
     .set TZIC_INTSEC1,          0x84
@@ -21,17 +21,22 @@
     .set TZIC_PRIOMASK,         0xC
     .set TZIC_PRIORITY9,        0x424
 
-    @ GPIO constants
+    @ GPIO constants.
     .set GPIO_BASE,             0x53F84000
     .set GPIO_DR,               0x00
     .set GPIO_GDIR,             0x04
     .set GPIO_PSR,              0x08
     .set GDIR_MASK,             0b11111111111111000000000000111110
 
-    @ stack size constant
+    @ stack size constant.
     .set STACK_SIZE             0x800 @2048 bytes
 
-    @ problem limitation constants
+    @ Motor constants.
+    .set MOTOR_0_MASK,  0b00000001111111000000000000000000
+    .set MOTOR_1_MASK,  0b11111110000000000000000000000000
+    .set SPEED_MASK,    0b00000000000000000000000001111111
+
+    @ Problem limitation constants.
     .set MAX_ALARMS,            8
     .set MAX_CALLBACKS,         8
 
@@ -173,14 +178,62 @@ read_sonar:
     bne read_sonar_error
     and r1, r0, #0b00000000000000000000000000000001 @ r1 has the lowest bit
     mov r1, r1 lsl #2 @places lowest bit in mux0 position
-    
-
-
 
 read_sonar_error:
 
     movs pc, lr
 
+set_motor_speed:
+    ldmfd sp!, {r0, r1}
+
+    @ Checks if speed is valid.
+    cmp r2, #63
+    bhi return_minus_two
+    cmp r2, #-1
+    bls return_minus_two
+
+    and r1, r1, #SPEED_MASK
+    cmp r0, #1
+    bne set_motor_0
+
+    @ In case it should activate the second motor:
+    lsl r1, #25                             @ Adjust speed bits position.
+    ldr r2, =GPIO_BASE
+    ldr r2, [r2, #GPIO_DR]
+    ldr r0, =MOTOR_1_MASK
+    bic r0, r2, r0                          @ Clears the 2nd motor bits.
+    orr r1, r0, r1                          @ Maintains the other bits.
+
+    str r1, [r2, #GPIO_DR]                  @ Sets the speed up.
+    b return_zero
+
+    @ In case it should activate the first motor:
+    set_motor_0:
+        cmp r0, #0                              @ Invalid parameter check.
+        bne return_minus_one
+
+        lsl r1, #18                             @ Adjust speed bits position.
+        ldr r2, =GPIO_BASE
+        str r0, [r2, #GPIO_DR]
+        ldr r0, =MOTOR_0_MASK
+        bic r0, r2, r0                          @ Clears the 1st motor bits.
+        orr r1, r0, r1                          @ Maintains the other bits.
+
+        str r1, [r2, #GPIO_DR]                  @ Sets the speed up.
+
+    b return_zero
+
+return_zero:
+    mov r0, #0
+    movs pc, lr
+
+return_minus_one:
+    mov r0, #-1
+    movs pc, lr
+
+return_minus_two:
+    mov r0, #-2
+    movs pc, lr
 .data
 USER_STACK:
     .space STACK_SIZE
