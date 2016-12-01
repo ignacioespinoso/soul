@@ -245,64 +245,64 @@ flag_is_set:
     mov r2, #1
     lsl r2, #6 @ mascara setada para pegar primeiro bit de sonar_data
     and r3, r0, r2 @ r3 tem o primeiro bit de sonar data
-    lsr r2, #6 @ coloca primeiro bit em posicao correta
+    lsr r3, #6 @ coloca primeiro bit em posicao correta
 
     lsl r2, #1 @ mascara setada para pegar segundo bit de sonar_data
     and r4, r0, r2 @ r4 tem o segundo bit de sonar data
-    lsr r2, #6 @ coloca segundo bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca segundo bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar terceiro bit de sonar_data
     and r4, r0, r2 @ r4 tem o terceiro bit de sonar data
-    lsr r2, #6 @ coloca terceiro bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca terceiro bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar quarto bit de sonar_data
     and r4, r0, r2 @ r4 tem o quarto bit de sonar data
-    lsr r2, #6 @ coloca quarto bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca quarto bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar quinto bit de sonar_data
     and r4, r0, r2 @ r4 tem o quinto bit de sonar data
-    lsr r2, #6 @ coloca quinto bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca quinto bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar sexto bit de sonar_data
     and r4, r0, r2 @ r4 tem o sexto bit de sonar data
-    lsr r2, #6 @ coloca sexto bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca sexto bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar setimo bit de sonar_data
     and r4, r0, r2 @ r4 tem o setimo bit de sonar data
-    lsr r2, #6 @ coloca setimo bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca setimo bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar oitavo bit de sonar_data
     and r4, r0, r2 @ r4 tem o oitavo bit de sonar data
-    lsr r2, #6 @ coloca oitavo bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca oitavo bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar nono bit de sonar_data
     and r4, r0, r2 @ r4 tem o nono bit de sonar data
-    lsr r2, #6 @ coloca nono bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca nono bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar decimo bit de sonar_data
     and r4, r0, r2 @ r4 tem o decimo bit de sonar data
-    lsr r2, #6 @ coloca decimo bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca decimo bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar decimo primeiro bit de sonar_data
     and r4, r0, r2 @ r4 tem o decimo primeiro bit de sonar data
-    lsr r2, #6 @ coloca decimo primeiro bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca decimo primeiro bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
     lsl r2, #1 @ mascara setada para pegar decimo segundo bit de sonar_data
     and r4, r0, r2 @ r4 tem o decimo segundo bit de sonar data
-    lsr r2, #6 @ coloca decimo segundo bit em posicao correta
-    orr r2, r2, r4 @ soma bits
+    lsr r4, #6 @ coloca decimo segundo bit em posicao correta
+    orr r3, r3, r4 @ soma bits
 
-    mov r0, r2
+    mov r0, r3
 
     b end_read_sonar
 
