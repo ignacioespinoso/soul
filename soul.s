@@ -39,7 +39,7 @@
     @ Problem limitation constants.
     .set MAX_ALARMS,            8
     .set MAX_CALLBACKS,         8
-
+    .set MAX_SPEED,             63
 .org 0x0
 .section .iv,"a"
 
@@ -187,15 +187,15 @@ set_motor_speed:
     ldmfd sp!, {r0, r1}
 
     @ Checks if speed is valid.
-    cmp r2, #63
+    cmp r1, #MAX_SPEED
     bhi return_minus_two
-    cmp r2, #-1
+    cmp r1, #-1
     bls return_minus_two
 
     and r1, r1, #SPEED_MASK
+
     cmp r0, #1
     bne set_motor_0
-
     @ In case it should activate the second motor:
     lsl r1, #25                             @ Adjust speed bits position.
     ldr r2, =GPIO_BASE
@@ -214,12 +214,50 @@ set_motor_speed:
 
         lsl r1, #18                             @ Adjust speed bits position.
         ldr r2, =GPIO_BASE
-        str r0, [r2, #GPIO_DR]
+        ldr r2, [r2, #GPIO_DR]
         ldr r0, =MOTOR_0_MASK
         bic r0, r2, r0                          @ Clears the 1st motor bits.
         orr r1, r0, r1                          @ Maintains the other bits.
 
+        ldr r2, =GPIO_BASE
         str r1, [r2, #GPIO_DR]                  @ Sets the speed up.
+
+    b return_zero
+
+set_motors_speed:
+    ldmfd sp!, {r0, r1}
+
+    @ Verifies if the speeds are valid.
+    cmp r0, #MAX_SPEED
+    bhi return_minus_one
+    cmp r0, #-1
+    bls return_minus_one
+
+    cmp r1, #MAX_SPEED
+    bhi return_minus_two
+    cmp r1, #-1
+    bls return_minus_two
+
+    @ If both speeds are valid, sets up the motors.
+    and r0, r0, #SPEED_MASK                     @ Sets up the speed parameters
+    and r1, r1, #SPEED_MASK
+    lsl r1, #25
+    lsl r0, #18
+
+    ldr r2, =GPIO_BASE
+    ldr r2, [r2, #GPIO_DR]
+
+    ldr r3, =MOTOR_0_MASK                       @ Set the 1st motor
+    bic r2, r2, r3                              @ Sets up the GPIO_DR register.
+    orr r0, r2, r0
+    ldr r2, =GPIO_BASE
+    str r0, [r2, #GPIO_DR]
+
+    ldr r3, =MOTOR_1_MASK                       @ Set the 2nd motor
+    bic r2, r2, r3                              @ Sets up the GPIO_DR register.
+    orr r1, r2, r1
+    ldr r2, =GPIO_BASE
+    str r1, [r2, #GPIO_BASE]
 
     b return_zero
 
