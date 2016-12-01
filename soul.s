@@ -31,10 +31,15 @@
     @ stack size constant.
     .set STACK_SIZE             0x800 @2048 bytes
 
+    @ Sonar constants.
+
+    .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
+    .set SELECT_1_BIT_MASK,     0b00000000000000000000000000000001
+
     @ Motor constants.
-    .set MOTOR_0_MASK,  0b00000001111111000000000000000000
-    .set MOTOR_1_MASK,  0b11111110000000000000000000000000
-    .set SPEED_MASK,    0b00000000000000000000000001111111
+    .set MOTOR_0_MASK,          0b00000001111111000000000000000000
+    .set MOTOR_1_MASK,          0b11111110000000000000000000000000
+    .set SPEED_MASK,            0b00000000000000000000000001111111
 
     @ Problem limitation constants.
     .set MAX_ALARMS,            8
@@ -182,16 +187,45 @@ SYSCALL_HANDLER:
     beq set_alarm
 
 read_sonar:
-    mov r1, =USER_STACK @ r1 acessara a pilha de usuario
-    ldmfd r1!, {r0} @ desempilha parametro dado e coloca em r0
-    and r1, r0, #0b11111111111111111111111111110000
+    ldmfd sp!, {r0} @ desempilha parametro dado e coloca em r0
+    stmfd sp!, {r4-r11, lr} @ salva registradores
+    ldr r2, =VALIDATE_ID_MASK
+    and r1, r0, r2 @ valida id do sonar
     cmp r1, #0
     bne read_sonar_error
-    and r1, r0, #0b00000000000000000000000000000001 @ r1 has the lowest bit
-    mov r1, r1 lsl #2 @places lowest bit in mux0 position
+
+    @@@ seleciona sonar desejado para leitura
+    ldr r1, =GPIO_BASE @ coloca base do GPIO em r1
+    ldr r2, =SELECT_1_BIT_MASK @ colca mascara em r2
+    and r3, r2, r0 @ r3 tem o lsb
+    lsl r3, #2 @ posiciona primeiro bit para escrita em DR
+    ldr r4, [r1, =GPIO_DR] @ carrega conteudo de DR em r4
+    orr r4, r4, r3 @ altera primeiro bit do mux
+    lsl r2, #1 @ mascara agora selecionara o segundo bit
+    and r3, r2, r0 @ r3 agora segura o segundo bit
+    lsl r3, #2 @ posiciona segundo bit para escrita em dr
+    orr r4, r4, r3 @ altera segundo bit do mux
+    lsl r2, #1 @ mascara agora selecionara o terceiro bit
+    and r3, r2, r0 @ r3 agora segura o terceiro bit
+    lsl r3, #2 @ posiciona bit para escrita em DR
+    orr r4, r4, r3 @ altera terceiro bit do mux
+    lsl r2, #1 @ mascara agora selecionara quarto bit
+    and r3, r2, r0 @ r3 agora segurara o quarto bit do mux
+    lsl r3, #2 @ posiciona bit para escrita em DR
+    orr r4, r4, r3 @ altera quarto bit do mux
+    str r4, [r1, =GPIO_DR] @ escreve em DR
+
+    @@@inicia leitura
+    
+
+
+
+
+
+
 
 read_sonar_error:
-
+    ldmfd sp!, {r4-r11, lr}
     movs pc, lr
 
 set_motor_speed:
