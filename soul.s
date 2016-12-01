@@ -64,6 +64,9 @@ RESET_HANDLER:
     ldr r0, =interrupt_vector
     mcr p15, 0, r0, c12, c0, 0
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ Setters                                                                      @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 SET_GPT:
     ldr r1, =GPT_BASE
 
@@ -135,6 +138,9 @@ SET_STACK:
     mcr CPSR_c, 0x10
     ldr sp, =USER_STACK
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ Handlers                                                                     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
 
     @ Salva o valor 1 em GPT_SR
@@ -153,6 +159,9 @@ IRQ_HANDLER:
     sub lr, lr, #4
     movs pc, lr
 
+@@@@@@@@@@@@@@@@@@@
+@ Syscalls        @
+@@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
     @transfers control flow to corresponding syscall
     cmp r7, #16
@@ -267,6 +276,9 @@ get_time:
 
     movs pc, lr
 
+@@@@@@@@@@@@@@@@@@@@@
+@ Return options    @
+@@@@@@@@@@@@@@@@@@@@@
 return_zero:
     mov r0, #0
     movs pc, lr
@@ -278,6 +290,10 @@ return_minus_one:
 return_minus_two:
     mov r0, #-2
     movs pc, lr
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ System data                                                                  @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 .data
 USER_STACK:
     .space STACK_SIZE
