@@ -22,18 +22,18 @@
     .set TZIC_PRIORITY9,        0x424
 
     @ GPIO constants
-    .set GPIO_BASE,     0x53F84000
-    .set GPIO_DR,       0x00
-    .set GPIO_GDIR,     0x04
-    .set GPIO_PSR,      0x08
-    .set GDIR_MASK,     0b11111111111111000000000000111110
+    .set GPIO_BASE,             0x53F84000
+    .set GPIO_DR,               0x00
+    .set GPIO_GDIR,             0x04
+    .set GPIO_PSR,              0x08
+    .set GDIR_MASK,             0b11111111111111000000000000111110
 
     @ stack size constant
-    .set STACK_SIZE     0x800 @2048 bytes
+    .set STACK_SIZE             0x800 @2048 bytes
 
     @ problem limitation constants
-    .set MAX_ALARMS,    8
-    .set MAX_CALLBACKS, 8
+    .set MAX_ALARMS,            8
+    .set MAX_CALLBACKS,         8
 
 .org 0x0
 .section .iv,"a"
@@ -168,7 +168,16 @@ SYSCALL_HANDLER:
 read_sonar:
     mov r1, =USER_STACK @ r1 acessara a pilha de usuario
     ldmfd r1!, {r0} @ desempilha parametro dado e coloca em r0
+    and r1, r0, #0b11111111111111111111111111110000
+    cmp r1, #0
+    bne read_sonar_error
+    and r1, r0, #0b00000000000000000000000000000001 @ r1 has the lowest bit
+    mov r1, r1 lsl #2 @places lowest bit in mux0 position
+    
 
+
+
+read_sonar_error:
 
     movs pc, lr
 
