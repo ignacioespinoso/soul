@@ -276,6 +276,13 @@ get_time:
 
     movs pc, lr
 
+set_time:
+    ldmfd sp!, {r0}
+    ldr r1, =TIME_COUNTER                       @ Gets TIME_COUNTER pointer.
+
+    str r0, [r1]                                @ Sets up TIME_COUNTER.
+    movs pc, lr
+
 @@@@@@@@@@@@@@@@@@@@@
 @ Return options    @
 @@@@@@@@@@@@@@@@@@@@@
