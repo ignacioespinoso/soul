@@ -9,8 +9,9 @@ interrupt_vector:
     b SYSCALL_HANDLER
 .org 0x18
     b IRQ_HANDLER
-.org 0x100
 
+
+.org 0x100
 .text
     @ Zera o contador
     ldr r2, =CONTADOR
@@ -22,6 +23,9 @@ RESET_HANDLER:
     ldr r0, =interrupt_vector
     mcr p15, 0, r0, c12, c0, 0
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ Setters                                                                      @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 SET_GPT:
     .set TIME_SZ,               100
     .set GPT_BASE,              0x53FA0000
@@ -89,7 +93,7 @@ SET_TZIC:
     mov	r0, #1
     str	r0, [r1, #TZIC_INTCTRL]
 
-    @instrucao msr - habilita interrupcoes
+    @ Instrucao msr - habilita interrupcoes
     msr  CPSR_c, #0x13       @ SUPERVISOR mode, IRQ/FIQ enabled
 
 SET_GPIO:
@@ -102,19 +106,24 @@ SET_GPIO:
 
     ldr r1, =GPIO_BASE
     ldr r0, =GDIR_MASK
-    str r0, [r1, #GPIO_GDIR] @configures in/out lines in GDIR
+    str r0, [r1, #GPIO_GDIR] @ Configures in/out lines in GDIR
 
 SET_STACK:
-    @ sets up corresponding stack in each mode
+    @ Sets up corresponding stack in each mode
     .set STACK_SIZE     0x800 @2048 bytes
     ldr sp, =SUPERVISOR_STACK
     mcr CPSR_c, 0xDF
     ldr sp, =SYSTEM_STACK
     mcr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
-    mcr CPSR_c, 0x10
-    ldr sp, =USER_STACK
 
+    @ Switches to user mode and leaves.
+    mcr CPSR_c, 0x10
+    movs pc, lr
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ Handlers                                                                     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
     .set GPT_SR,                0x53FA0008
 
@@ -135,7 +144,7 @@ IRQ_HANDLER:
     movs pc, lr
 
 SYSCALL_HANDLER:
-    @transfers control flow to corresponding syscall
+    @ Transfers control flow to corresponding syscall
     cmp r7, #16
     beq read_sonar
     cmp r7, #17
@@ -151,10 +160,15 @@ SYSCALL_HANDLER:
     cmp r7, #22
     beq set_alarm
 
-.data
-USER_STACK:
-    .space STACK_SIZE
+@Sonars
+set_motor_speed:
 
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ Data                                                                         @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+.data
 SYSTEM_STACK:
     .space STACK_SIZE
 
