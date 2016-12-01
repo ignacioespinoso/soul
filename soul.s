@@ -55,7 +55,7 @@ interrupt_vector:
 
 .text
     @ Zera o contador
-    ldr r2, =CONTADOR
+    ldr r2, =TIME_COUNTER
     mov r0,#0
     str r0,[r2]
 
@@ -143,7 +143,7 @@ IRQ_HANDLER:
     str r0, [r1]
 
     @ Incrementa o contador de interrupcoes
-    ldr r1, =CONTADOR
+    ldr r1, =TIME_COUNTER
     ldr r1, [r1]
     mov r0, #1
     add r0, r0, r1
@@ -261,6 +261,12 @@ set_motors_speed:
 
     b return_zero
 
+get_time:
+    ldr r0, =TIME_COUNTER
+    ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
+
+    movs pc, lr
+
 return_zero:
     mov r0, #0
     movs pc, lr
@@ -285,6 +291,5 @@ SUPERVISOR_STACK:
 IRQ_STACK:
     .space STACK_SIZE
 
-
-CONTADOR:
+TIME_COUNTER:
     .word 0x0
