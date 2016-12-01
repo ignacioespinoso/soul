@@ -120,22 +120,22 @@ SET_TZIC:
     mov	r0, #1
     str	r0, [r1, #TZIC_INTCTRL]
 
-    @instrucao msr - habilita interrupcoes
-    msr  CPSR_c, #0x13       @ SUPERVISOR mode, IRQ/FIQ enabled
+    @ instrucao msr - habilita interrupcoes
+    msr  CPSR_c, #0x13                      @ SUPERVISOR mode, IRQ/FIQ enabled
 
 SET_GPIO:
     ldr r1, =GPIO_BASE
     ldr r0, =GDIR_MASK
-    str r0, [r1, #GPIO_GDIR] @configures in/out lines in GDIR
+    str r0, [r1, #GPIO_GDIR]                @ Configures in/out lines in GDIR
 
 SET_STACK:
-    @ sets up corresponding stack in each mode
+    @ Sets up corresponding stack in each mode
     ldr sp, =SUPERVISOR_STACK
-    mcr CPSR_c, 0xDF
+    msr CPSR_c, 0xDF
     ldr sp, =SYSTEM_STACK
-    mcr CPSR_c, 0xD2
+    msr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
-    mcr CPSR_c, 0x10
+    msr CPSR_c, 0x10
     ldr sp, =USER_STACK
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -163,7 +163,9 @@ IRQ_HANDLER:
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
-    @transfers control flow to corresponding syscall
+    msr CPSR_c, 0xD2                            @ Changes to system mode
+
+    @ Transfers control flow to corresponding syscall
     cmp r7, #16
     beq read_sonar
     cmp r7, #17
