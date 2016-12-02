@@ -12,8 +12,9 @@
     .set GPT_SR,                0x53FA0008
     .set GPT_SR,                0x53FA0008
 
-    @ Time constant.
+    @ Time constants.
     .set TIME_SZ,               100
+    .set FIFTEEN_MS,            15 @ nem um pouco certo
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -231,7 +232,17 @@ read_sonar:
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
     str r4, [r1, #GPIO_DR] @ escreve em DR
-    @ delay 15ms -> TODO
+
+    @ delay 15ms
+    ldr r0, =TIME_COUNTER
+    ldr r1, [r0]   @ coloca tempo atual em r0
+    add r1, r1, #FIFTEEN_MS
+
+delay_15_ms:
+    ldr r2. [r0] @ coloca novo tempo em r2
+    cmp r2, r1 @ compara tempo atual com tempo pos delay
+    blo delay_15_ms @ se tempo nao foi atingido, continua delay
+    
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
