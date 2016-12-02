@@ -1,4 +1,6 @@
 Para ter acesso aos comandos:
+source /home/specg12-1/mc404/simulador/set_path.sh
+ou
 source /home/specg12-1/mc404/simulador/set_path_player.sh
 
 Para rodar o player:
