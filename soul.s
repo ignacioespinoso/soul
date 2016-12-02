@@ -75,7 +75,7 @@ RESET_HANDLER:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @ Setters                                                                      @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-SET_GPT:
+SET_GPT: @comentei aqui
     ldr r1, =GPT_BASE
 
     @ Habilita o GPT_CR e configura clock_src para periferico
