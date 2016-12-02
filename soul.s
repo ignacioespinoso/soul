@@ -242,7 +242,7 @@ delay_15_ms:
     ldr r2. [r0] @ coloca novo tempo em r2
     cmp r2, r1 @ compara tempo atual com tempo pos delay
     blo delay_15_ms @ se tempo nao foi atingido, continua delay
-    
+
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
