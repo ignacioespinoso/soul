@@ -122,6 +122,5 @@ set_time:
     stmfd sp!, {r0}
     mov r7, #21                     @ Identifica a syscall 20 (set_time)
     svc 0x0
-    ldmfd sp!, {r0}
 
     ldmfd sp!, {r4-r11, pc}
