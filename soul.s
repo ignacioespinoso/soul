@@ -335,17 +335,17 @@ set_motor_speed:
     bne set_motor_0
     @ In case it should activate the second motor:
     lsl r1, #26                             @ Adjust speed bits position.
-    ldr r0, =SET_MOTOR_1_MASK               @ Include MOTOR1_WRITE bit.
-    orr r1, r1, r0
+    ldr r0, =SET_MOTOR_1_MASK               @ Guarantees MOTOR1_WRITE bit equals 0.
+    bic r1, r1, r0
 
     ldr r2, =GPIO_BASE                      @ Obtain how GPIO_DR actually is.
     ldr r2, [r2, #GPIO_DR]
 
     ldr r0, =MOTOR_1_MASK
-    and r1, r1, r0                          @ Adjust remaining speed bits.
-    bic r0, r2, r0                          @ Clears the 1st motor GPIO_DR bits.
-    orr r1, r0, r1                          @ Includes the new speed on GPIO_DR.
+    bic r0, r2, r0                          @ Clears the 2nd motor bits.
+    orr r1, r0, r1                          @ Maintains the other bits.
 
+    ldr r2, =GPIO_BASE
     str r1, [r2, #GPIO_DR]                  @ Sets the speed up.
     b return_zero
 
@@ -355,8 +355,8 @@ set_motor_speed:
         bne return_minus_one
 
         lsl r1, #19                             @ Adjust speed bits position.
-        ldr r0, =SET_MOTOR_0_MASK               @ Include MOTOR0_WRITE bit.
-        orr r1, r1, r0
+        ldr r0, =SET_MOTOR_0_MASK               @ Guarantees MOTOR0_WRITE bit equals 0.
+        bic r1, r1, r0
 
         ldr r2, =GPIO_BASE                      @ Obtain how GPIO_DR actually is.
         ldr r2, [r2, #GPIO_DR]
