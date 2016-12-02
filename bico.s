@@ -112,7 +112,7 @@ get_time:
 
     mov r7, #20                     @ Identifica a syscall 20 (get_time)
     svc 0x0
-    strb r0, [r1]
+    str r0, [r1]
 
     ldmfd sp!, {r4-r11, pc}
 

@@ -202,7 +202,7 @@ read_sonar:
     ldr r2, =VALIDATE_ID_MASK
     and r1, r0, r2 @ valida id do sonar
     cmp r1, #0
-    bne read_sonar_error
+    bne return_minus_one
 
     @@@ seleciona sonar desejado para leitura
     ldr r1, =GPIO_BASE @ coloca base do GPIO em r1
@@ -313,12 +313,6 @@ flag_is_set:
 
     mov r0, r3
 
-    b end_read_sonar
-
-read_sonar_error:
-    mov r0, #-1
-
-end_read_sonar:
     ldmfd sp!, {r4-r11, lr}
     msr CPSR_c, 0x13
     movs pc, lr
