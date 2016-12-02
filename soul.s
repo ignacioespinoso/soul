@@ -208,7 +208,7 @@ read_sonar:
 
     and r3, r2, r0 @ r3 tem o lsb
     lsl r3, #2 @ posiciona primeiro bit para escrita em DR
-    ldr r4, [r1, =GPIO_DR] @ carrega conteudo de DR em r4
+    ldr r4, [r1, #GPIO_DR] @ carrega conteudo de DR em r4
     orr r4, r4, r3 @ altera primeiro bit do mux
 
     lsl r2, #1 @ mascara agora selecionara o segundo bit
@@ -229,19 +229,19 @@ read_sonar:
     @@@inicia leitura
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
-    str r4, [r1, =GPIO_DR] @ escreve em DR
+    str r4, [r1, #GPIO_DR] @ escreve em DR
     @ delay 15ms -> TO_DO
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
-    str r4, [r1, =GPIO_DR] @ escreve em DR
+    str r4, [r1, #GPIO_DR] @ escreve em DR
     @ delay de 15ms -> TO_DO
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
-    str r4, [r1, =GPIO_DR] @ escreve em DR
+    str r4, [r1, #GPIO_DR] @ escreve em DR
 
 check_flag:
-    ldr r0, [r1, =GPIO_PSR] @ coloca conetudo de PSR em r0
+    ldr r0, [r1, #GPIO_PSR] @ coloca conetudo de PSR em r0
     and r0, r0, #1
     cmp r0, #1
     beq flag_is_set
