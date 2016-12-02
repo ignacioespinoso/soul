@@ -44,6 +44,8 @@
     .set MOTOR_1_MASK,          0b11111110000000000000000000000000
     .set SET_MOTOR_1_MASK,      0b00000010000000000000000000000000
     .set SPEED_MASK,            0b00000000000000000000000001111111
+    .set MOTORS_MASK,           0b11111111111111000000000000000000
+    .set SET_MOTORS_MASK,       0b00000010000001000000000000000000
 
     @ Problem limitation constants.
     .set MAX_ALARMS,            8
@@ -239,7 +241,7 @@ read_sonar:
     add r1, r1, #FIFTEEN_MS
 
 delay_15_ms:
-    ldr r2. [r0] @ coloca novo tempo em r2
+    ldr r2, [r0] @ coloca novo tempo em r2
     cmp r2, r1 @ compara tempo atual com tempo pos delay
     blo delay_15_ms @ se tempo nao foi atingido, continua delay
 
@@ -342,22 +344,22 @@ set_motor_speed:
 
     and r1, r1, #SPEED_MASK
 
+    ldr r2, =GPIO_BASE                          @ Obtain how GPIO_DR actually is.
+    ldr r2, [r2, #GPIO_DR]
+
     cmp r0, #1
     bne set_motor_0
     @ In case it should activate the second motor:
-    lsl r1, #26                             @ Adjust speed bits position.
-    ldr r0, =SET_MOTOR_1_MASK               @ Guarantees MOTOR1_WRITE bit equals 0.
+    lsl r1, #26                                 @ Adjust speed bits position.
+    ldr r0, =SET_MOTOR_1_MASK                   @ Guarantees MOTOR1_WRITE bit equals 0.
     bic r1, r1, r0
 
-    ldr r2, =GPIO_BASE                      @ Obtain how GPIO_DR actually is.
-    ldr r2, [r2, #GPIO_DR]
-
     ldr r0, =MOTOR_1_MASK
-    bic r0, r2, r0                          @ Clears the 2nd motor bits.
-    orr r1, r0, r1                          @ Maintains the other bits.
+    bic r0, r2, r0                              @ Clears the 2nd motor bits.
+    orr r1, r0, r1                              @ Maintains the other bits.
 
     ldr r2, =GPIO_BASE
-    str r1, [r2, #GPIO_DR]                  @ Sets the speed up.
+    str r1, [r2, #GPIO_DR]                      @ Sets the speed up.
     b return_zero
 
     @ In case it should activate the first motor:
@@ -368,9 +370,6 @@ set_motor_speed:
         lsl r1, #19                             @ Adjust speed bits position.
         ldr r0, =SET_MOTOR_0_MASK               @ Guarantees MOTOR0_WRITE bit equals 0.
         bic r1, r1, r0
-
-        ldr r2, =GPIO_BASE                      @ Obtain how GPIO_DR actually is.
-        ldr r2, [r2, #GPIO_DR]
 
         ldr r0, =MOTOR_0_MASK
         and r1, r1, r0                          @ Adjust remaining speed bits.
@@ -399,23 +398,19 @@ set_motors_speed:
     @ If both speeds are valid, sets up the motors.
     and r0, r0, #SPEED_MASK                     @ Sets up the speed parameters
     and r1, r1, #SPEED_MASK
-    lsl r1, #25
-    lsl r0, #18
+    lsl r1, #26                                 @ Adjust speed parameters positions.
+    lsl r0, #19
 
     ldr r2, =GPIO_BASE
     ldr r2, [r2, #GPIO_DR]
 
-    ldr r3, =MOTOR_0_MASK                       @ Set the 1st motor
-    bic r2, r2, r3                              @ Sets up the GPIO_DR register.
-    orr r0, r2, r0
-    ldr r2, =GPIO_BASE
-    str r0, [r2, #GPIO_DR]
+    ldr r3, =MOTORS_MASK
+    bic r2, r2, r3                              @ Clears the 1st and 2nd motor GPIO_DR bits.
+    orr r0, r2, r0                              @ Includes the 1st motor on GPIO_DR.
+    orr r1, r0, r1                              @ Includes the 2nd motor on GPIO_DR.
 
-    ldr r3, =MOTOR_1_MASK                       @ Set the 2nd motor
-    bic r2, r2, r3                              @ Sets up the GPIO_DR register.
-    orr r1, r2, r1
     ldr r2, =GPIO_BASE
-    str r1, [r2, #GPIO_DR]
+    str r1, [r2, #GPIO_DR]                      @ Stores the new 1st and 2nd motors speed.
 
     b return_zero
 
