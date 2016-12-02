@@ -321,6 +321,10 @@ end_read_sonar:
     msr CPSR_c, 0x13
     movs pc, lr
 
+register_proximity_callback:
+    msr CPSR_c, 0x13
+    movs pc, lr
+
 set_motor_speed:
     ldmfd sp!, {r0, r1}
 
@@ -410,6 +414,10 @@ set_time:
     ldr r1, =TIME_COUNTER                       @ Gets TIME_COUNTER pointer.
 
     str r0, [r1]                                @ Sets up TIME_COUNTER.
+    msr CPSR_c, 0x13
+    movs pc, lr
+
+set_alarm:
     msr CPSR_c, 0x13
     movs pc, lr
 

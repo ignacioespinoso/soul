@@ -1,7 +1,14 @@
+Para ter acesso aos comandos:
 source /home/specg12-1/mc404/simulador/set_path_player.sh
 
+Para rodar o player:
 player /home/specg12-1/mc404/simulador/simulador_player/worlds_mc404/simple.cfg
 
+Para abrir o simulador com suporte ao GDB:
+arm-sim --rom=/home/specg12-1/mc404/simulador/simulador_player/bin/dumboot.bin --sd=disk.img -g
+
+Para simular com o player:
 armsim_player --rom=/home/specg12-1/mc404/simulador/simulador_player/bin/dumboot.bin --sd=disk.img
 
-arm-eabi-gdb
+Para rodar o GDB com o programa:
+arm-eabi-gdb nome_do_executavel
