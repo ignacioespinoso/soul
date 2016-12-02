@@ -1,5 +1,4 @@
     @ Setting up constants
-    @ oi comentei
 
     @ User code starting point constant
     .set USER_CODE_ADDRESS,     0x77802000
@@ -75,7 +74,7 @@ RESET_HANDLER:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @ Setters                                                                      @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-SET_GPT: @comentei aqui
+SET_GPT:
     ldr r1, =GPT_BASE
 
     @ Habilita o GPT_CR e configura clock_src para periferico
