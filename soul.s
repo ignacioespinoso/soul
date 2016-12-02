@@ -1,4 +1,5 @@
     @ Setting up constants
+    @ oi comentei
 
     @ User code starting point constant
     .set USER_CODE_ADDRESS,     0x77802000
