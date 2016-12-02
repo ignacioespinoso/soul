@@ -161,11 +161,10 @@ IRQ_HANDLER:
     str r0, [r1]
 
     @ Incrementa o contador de interrupcoes
-    ldr r1, =TIME_COUNTER
-    ldr r1, [r1]
-    mov r0, #1
-    add r0, r0, r1
-    str r0, [r1]
+    ldr r1, =TIME_COUNTER @ coloca endereco do TIME_COUNTER em r1
+    ldr r0, [r1] @ coloca valor do time counter em r0
+    add r0, r0, #1 @ soma 1 no counter
+    str r0, [r1] @ escreve novo valor em TIME_COUNTER
 
     @ Corrige o valor de LR
     sub lr, lr, #4
@@ -232,12 +231,12 @@ read_sonar:
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
     str r4, [r1, #GPIO_DR] @ escreve em DR
-    @ delay 15ms -> TO_DO
+    @ delay 15ms -> TODO
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
     str r4, [r1, #GPIO_DR] @ escreve em DR
-    @ delay de 15ms -> TO_DO
+    @ delay de 15ms -> TODO
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
     str r4, [r1, #GPIO_DR] @ escreve em DR
@@ -247,7 +246,7 @@ check_flag:
     and r0, r0, #1
     cmp r0, #1
     beq flag_is_set
-    @ caso nao: delay 10ms -> TO DO
+    @ caso nao: delay 10ms -> TODO
     b check_flag
     @ caso sim: pegar leitura dos sonar_datas
 flag_is_set:
@@ -410,6 +409,7 @@ set_motors_speed:
     b return_zero
 
 get_time:
+    @FIXME: time not passing
     ldr r0, =TIME_COUNTER
     ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
     msr CPSR_c, 0x13
