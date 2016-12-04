@@ -221,38 +221,37 @@ read_sonar:
 
     @@@inicia leitura
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
-    and r2, r2, r0 @ zera trigger em MUX
+    and r2, r2, r0 @ zera trigger
     str r2, [r1, #GPIO_DR] @ escreve em DR
 
     @ delay 15ms
     ldr r0, =TIME_COUNTER
     ldr r3, [r0]   @ coloca tempo atual em r3
-    ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
-    add r3, r3, r2 @ soma tempo atual com 15ms e poe em r3
+    ldr r4, =FIFTEEN_MS @ coloca constante de 15ms em r4
+    add r3, r3, r4 @ soma tempo atual com 15ms e poe em r3
 
 first_delay:
-    ldr r2, [r0] @ coloca novo tempo em r2
-    cmp r2, r3 @ verifica se ja se passaram 15 ms
+    ldr r4, [r0] @ coloca novo tempo em r4
+    cmp r4, r3 @ verifica se ja se passaram 15 ms
     blo first_delay @ se tempo nao foi atingido, continua delay
 
-    mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
-    lsl r0, #1 @ desloca mascara para settar trigger
-    orr r4, r0 @ seta trigger
-    str r4, [r1, #GPIO_DR] @ escreve em DR
+    mov r0, #2 @ coloca mascara que seleciona 1 bit em r0
+    orr r2, r0 @ seta trigger
+    str r2, [r1, #GPIO_DR] @ escreve em DR
     @ delay 15ms
     ldr r0, =TIME_COUNTER
     ldr r3, [r0]   @ coloca tempo atual em r3
-    ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
-    add r3, r3, r2 @ soma tempo atual com 15ms e poe em r3
+    ldr r4, =FIFTEEN_MS @ coloca constante de 15ms em r2
+    add r3, r3, r4 @ soma tempo atual com 15ms e poe em r3
 
 second_delay:
-    ldr r2, [r0] @ coloca novo tempo em r2
-    cmp r2, r3 @ verifica se ja se passaram 15 ms
+    ldr r4, [r0] @ coloca novo tempo em r4
+    cmp r4, r3 @ verifica se ja se passaram 15 ms
     blo second_delay @ se tempo nao foi atingido, continua delay
 
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
-    and r4, r4, r0 @ zera trigger em MUX
-    str r4, [r1, #GPIO_DR] @ escreve em DR
+    and r2, r2, r0 @ zera trigger em MUX
+    str r2, [r1, #GPIO_DR] @ escreve em DR
 
     @ verifica flag
 check_flag:
@@ -279,7 +278,7 @@ set_motor_speed:
     ldmfd sp!, {r0, r1}
 
     @ Checks if speed is valid.
-    
+
     cmp r1, #MAX_SPEED
     bhi return_minus_two
     cmp r1, #0
