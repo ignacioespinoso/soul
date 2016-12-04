@@ -14,7 +14,7 @@
 
     @ Time constants.
     .set TIME_SZ,               100
-    .set FIFTEEN_MS,            15 @ nem um pouco certo
+    .set FIFTEEN_MS,            15 @ TODO: descobrir valor da constante
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -32,7 +32,7 @@
     .set GDIR_MASK,             0b11111111111111000000000000111110
 
     @ stack size constant.
-    .set STACK_SIZE,             0x800 @2048 bytes
+    .set STACK_SIZE,            0x800 @2048 bytes
 
     @ Sonar constants.
     .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
@@ -237,32 +237,43 @@ read_sonar:
 
     @ delay 15ms
     ldr r0, =TIME_COUNTER
-    ldr r1, [r0]   @ coloca tempo atual em r0
-    add r1, r1, #FIFTEEN_MS
+    ldr r1, [r0]   @ coloca tempo atual em r1
+    ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
+    add r1, r1, r2 @ soma tempo atual com 15ms e poe em r1
 
-delay_15_ms:
+first_delay:
     ldr r2, [r0] @ coloca novo tempo em r2
-    cmp r2, r1 @ compara tempo atual com tempo pos delay
-    blo delay_15_ms @ se tempo nao foi atingido, continua delay
+    cmp r2, r1 @ verifica se ja se passaram 15 ms
+    blo first_delay @ se tempo nao foi atingido, continua delay
 
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
     str r4, [r1, #GPIO_DR] @ escreve em DR
-    @ delay de 15ms -> TODO
+
+    @ delay 15ms
+    ldr r0, =TIME_COUNTER
+    ldr r1, [r0]   @ coloca tempo atual em r1
+    ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
+    add r1, r1, r2 @ soma tempo atual com 15ms e poe em r1
+
+second_delay:
+    ldr r2, [r0] @ coloca novo tempo em r2
+    cmp r2, r1 @ verifica se ja se passaram 15 ms
+    blo second_delay @ se tempo nao foi atingido, continua delay
+
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
     and r4, r4, r0 @ zera trigger em MUX
     str r4, [r1, #GPIO_DR] @ escreve em DR
 
+    @ verifica flag
 check_flag:
     ldr r0, [r1, #GPIO_PSR] @ coloca conetudo de PSR em r0
     and r0, r0, #1
     cmp r0, #1
-    beq flag_is_set
-    @ caso nao: delay 10ms -> TODO
-    b check_flag
-    @ caso sim: pegar leitura dos sonar_datas
-flag_is_set:
+    bne check_flag @ continua em loop ateh flag estar setada
+
+    @ pega dados dos sonar_datas
     mov r2, #1
     lsl r2, #6 @ mascara setada para pegar primeiro bit de sonar_data
     and r3, r0, r2 @ r3 tem o primeiro bit de sonar data
@@ -323,11 +334,11 @@ flag_is_set:
     lsr r4, #6 @ coloca decimo segundo bit em posicao correta
     orr r3, r3, r4 @ soma bits
 
-    mov r0, r3
+    mov r0, r3 @ coloca distancia final em r0
 
-    ldmfd sp!, {r4-r11, lr}
-    msr CPSR_c, 0x13
-    movs pc, lr
+    ldmfd sp!, {r4-r11, lr} @ desempilha registradores
+    msr CPSR_c, 0x13    @ muda de modo
+    movs pc, lr @ retorna
 
 register_proximity_callback:
     msr CPSR_c, 0x13
@@ -415,7 +426,6 @@ set_motors_speed:
     b return_zero
 
 get_time:
-    @FIXME: time not passing
     ldr r0, =TIME_COUNTER
     ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
     msr CPSR_c, 0x13
