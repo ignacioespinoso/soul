@@ -37,6 +37,8 @@
     @ Sonar constants.
     .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
     .set ZERO_TRIGGER_MASK,     0b11111111111111111111111111111101
+    .set SONAR_DATA_MASK,       0b00000000000000000011111111111100
+    .set ZERO_MUX_MASK,         0b11111111111111111111111111000011
 
     @ Motor constants.
     .set MOTOR_0_MASK,          0b00000001111111000000000000000000
@@ -157,7 +159,7 @@ SET_STACK:
 @ Handlers                                                                     @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
-
+    stmfd sp!, {r0-r12}
     @ Salva o valor 1 em GPT_SR
     ldr r1, =GPT_SR
     mov r0, #1
@@ -169,6 +171,7 @@ IRQ_HANDLER:
     add r0, r0, #1 @ soma 1 no counter
     str r0, [r1] @ escreve novo valor em TIME_COUNTER
 
+    ldmfd sp!, {r0-r12}
     @ Corrige o valor de LR
     sub lr, lr, #4
     movs pc, lr
@@ -209,7 +212,7 @@ read_sonar:
     @@@ seleciona sonar desejado para leitura
     ldr r1, =GPIO_BASE @ coloca base do GPIO em r1
     lsl r0, #2 @desloca bits para escrita em MUX
-    ldr r2, [r1, GPIO_DR] @abre conteudo de DR em r2
+    ldr r2, [r1, #GPIO_DR] @abre conteudo de DR em r2
     ldr r3, =ZERO_MUX_MASK @abre mascara em r3
     and r2, r2, r3 @ zera bits de MUX em DR
     orr r2, r2, r0 @ coloca novos bits do MUX no lugar em DR
@@ -256,7 +259,7 @@ check_flag:
     cmp r0, #1
     bne check_flag @ continua em loop ateh flag estar setada
 
-        @ pega dados dos sonar_datas
+    @ pega dados dos sonar_datas
     ldr r0, [r1, #GPIO_DR] @ coloca conetudo de PSR em r0
     ldr r2, =SONAR_DATA_MASK @ coloca mascara de sonar data em r2
     and r0, r0, r2 @ coloca conteudo dos sonar datas em r0
