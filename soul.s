@@ -440,8 +440,27 @@ set_time:
     movs pc, lr
 
 set_alarm:
-    msr CPSR_c, 0x13
-    movs pc, lr
+    ldmfd sp!, {r0, r1}
+
+    ldr r2, =ALARMS_NUM                         @ Loads the current number of alarms.
+    ldr r2, [r2]
+    cmp r2, #MAX_ALARMS                          @ Verifies if we can put one more alarm.
+    bhs return_minus_one                        @ Returns -1 if we can't.
+
+    add r2, r2, #1                              @ Increase the number of alarms.
+    ldr r3, =ALARMS_NUM
+    str r2, [r3]                                @ Saves the new amount.
+
+    ldr r3, =TIME_COUNTER                       @ Loads the current system time.
+    ldr r3, [r3]
+    cmp r3, r1                                  @ Compares it with the time parameter.
+    bls return_minus_two                        @ Returns -2 if the parameter is invalid.
+
+    ldr r3, =ALARMS_FUNCTIONS
+    str r0, [r3, r2]                            @ Stores the alarm function pointer.
+    ldr r3, =ALARMS_TIMES
+    str r1, [r3, r2]                            @ Stores the alarm time.
+    b return_zero
 
 @@@@@@@@@@@@@@@@@@@@@
 @ Return options    @
@@ -477,3 +496,11 @@ IRQ_STACK:
 
 TIME_COUNTER:
     .word 0x0
+
+@ Information regarding the system alarms.
+ALARMS_NUM:
+    .word 0x0
+ALARMS_FUNCTIONS:
+    .space MAX_ALARMS
+ALARMS_TIMES:
+    .space MAX_ALARMS
