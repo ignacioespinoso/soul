@@ -208,58 +208,41 @@ read_sonar:
 
     @@@ seleciona sonar desejado para leitura
     ldr r1, =GPIO_BASE @ coloca base do GPIO em r1
-    mov r2, #1 @ colca mascara em r2
-
-    and r3, r2, r0 @ r3 tem o lsb
-    lsl r3, #2 @ posiciona primeiro bit para escrita em DR
-    ldr r4, [r1, #GPIO_DR] @ carrega conteudo de DR em r4
-    orr r4, r4, r3 @ altera primeiro bit do mux
-
-    lsl r2, #1 @ mascara agora selecionara o segundo bit
-    and r3, r2, r0 @ r3 agora segura o segundo bit
-    lsl r3, #2 @ posiciona segundo bit para escrita em dr
-    orr r4, r4, r3 @ altera segundo bit do mux
-
-    lsl r2, #1 @ mascara agora selecionara o terceiro bit
-    and r3, r2, r0 @ r3 agora segura o terceiro bit
-    lsl r3, #2 @ posiciona bit para escrita em DR
-    orr r4, r4, r3 @ altera terceiro bit do mux
-
-    lsl r2, #1 @ mascara agora selecionara quarto bit
-    and r3, r2, r0 @ r3 agora segurara o quarto bit do mux
-    lsl r3, #2 @ posiciona bit para escrita em DR
-    orr r4, r4, r3 @ altera quarto bit do mux
+    lsl r0, #2 @desloca bits para escrita em MUX
+    ldr r2, [r1, GPIO_DR] @abre conteudo de DR em r2
+    ldr r3, =ZERO_MUX_MASK @abre mascara em r3
+    and r2, r2, r3 @ zera bits de MUX em DR
+    orr r2, r2, r0 @ coloca novos bits do MUX no lugar em DR
 
     @@@inicia leitura
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
-    and r4, r4, r0 @ zera trigger em MUX
-    str r4, [r1, #GPIO_DR] @ escreve em DR
+    and r2, r2, r0 @ zera trigger em MUX
+    str r2, [r1, #GPIO_DR] @ escreve em DR
 
     @ delay 15ms
     ldr r0, =TIME_COUNTER
-    ldr r1, [r0]   @ coloca tempo atual em r1
+    ldr r3, [r0]   @ coloca tempo atual em r3
     ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
-    add r1, r1, r2 @ soma tempo atual com 15ms e poe em r1
+    add r3, r3, r2 @ soma tempo atual com 15ms e poe em r3
 
 first_delay:
     ldr r2, [r0] @ coloca novo tempo em r2
-    cmp r2, r1 @ verifica se ja se passaram 15 ms
+    cmp r2, r3 @ verifica se ja se passaram 15 ms
     blo first_delay @ se tempo nao foi atingido, continua delay
 
     mov r0, #1 @ coloca mascara que seleciona 1 bit em r0
     lsl r0, #1 @ desloca mascara para settar trigger
     orr r4, r0 @ seta trigger
     str r4, [r1, #GPIO_DR] @ escreve em DR
-
     @ delay 15ms
     ldr r0, =TIME_COUNTER
-    ldr r1, [r0]   @ coloca tempo atual em r1
+    ldr r3, [r0]   @ coloca tempo atual em r3
     ldr r2, =FIFTEEN_MS @ coloca constante de 15ms em r2
-    add r1, r1, r2 @ soma tempo atual com 15ms e poe em r1
+    add r3, r3, r2 @ soma tempo atual com 15ms e poe em r3
 
 second_delay:
     ldr r2, [r0] @ coloca novo tempo em r2
-    cmp r2, r1 @ verifica se ja se passaram 15 ms
+    cmp r2, r3 @ verifica se ja se passaram 15 ms
     blo second_delay @ se tempo nao foi atingido, continua delay
 
     ldr r0, =ZERO_TRIGGER_MASK @ coloca mascara que zera trigger em r0
@@ -268,73 +251,16 @@ second_delay:
 
     @ verifica flag
 check_flag:
-    ldr r0, [r1, #GPIO_PSR] @ coloca conetudo de PSR em r0
+    ldr r0, [r1, #GPIO_DR] @ coloca conetudo de PSR em r0
     and r0, r0, #1
     cmp r0, #1
     bne check_flag @ continua em loop ateh flag estar setada
 
-    @ pega dados dos sonar_datas
-    mov r2, #1
-    lsl r2, #6 @ mascara setada para pegar primeiro bit de sonar_data
-    and r3, r0, r2 @ r3 tem o primeiro bit de sonar data
-    lsr r3, #6 @ coloca primeiro bit em posicao correta
-
-    lsl r2, #1 @ mascara setada para pegar segundo bit de sonar_data
-    and r4, r0, r2 @ r4 tem o segundo bit de sonar data
-    lsr r4, #6 @ coloca segundo bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar terceiro bit de sonar_data
-    and r4, r0, r2 @ r4 tem o terceiro bit de sonar data
-    lsr r4, #6 @ coloca terceiro bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar quarto bit de sonar_data
-    and r4, r0, r2 @ r4 tem o quarto bit de sonar data
-    lsr r4, #6 @ coloca quarto bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar quinto bit de sonar_data
-    and r4, r0, r2 @ r4 tem o quinto bit de sonar data
-    lsr r4, #6 @ coloca quinto bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar sexto bit de sonar_data
-    and r4, r0, r2 @ r4 tem o sexto bit de sonar data
-    lsr r4, #6 @ coloca sexto bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar setimo bit de sonar_data
-    and r4, r0, r2 @ r4 tem o setimo bit de sonar data
-    lsr r4, #6 @ coloca setimo bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar oitavo bit de sonar_data
-    and r4, r0, r2 @ r4 tem o oitavo bit de sonar data
-    lsr r4, #6 @ coloca oitavo bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar nono bit de sonar_data
-    and r4, r0, r2 @ r4 tem o nono bit de sonar data
-    lsr r4, #6 @ coloca nono bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar decimo bit de sonar_data
-    and r4, r0, r2 @ r4 tem o decimo bit de sonar data
-    lsr r4, #6 @ coloca decimo bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar decimo primeiro bit de sonar_data
-    and r4, r0, r2 @ r4 tem o decimo primeiro bit de sonar data
-    lsr r4, #6 @ coloca decimo primeiro bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    lsl r2, #1 @ mascara setada para pegar decimo segundo bit de sonar_data
-    and r4, r0, r2 @ r4 tem o decimo segundo bit de sonar data
-    lsr r4, #6 @ coloca decimo segundo bit em posicao correta
-    orr r3, r3, r4 @ soma bits
-
-    mov r0, r3 @ coloca distancia final em r0
+        @ pega dados dos sonar_datas
+    ldr r0, [r1, #GPIO_DR] @ coloca conetudo de PSR em r0
+    ldr r2, =SONAR_DATA_MASK @ coloca mascara de sonar data em r2
+    and r0, r0, r2 @ coloca conteudo dos sonar datas em r0
+    lsr r0, #6 @ ajusta a posicao dos bits
 
     ldmfd sp!, {r4-r11, lr} @ desempilha registradores
     msr CPSR_c, 0x13    @ muda de modo
