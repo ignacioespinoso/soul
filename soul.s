@@ -141,6 +141,8 @@ SET_GPIO:
     ldr r1, =GPIO_BASE
     ldr r0, =GDIR_MASK
     str r0, [r1, #GPIO_GDIR]                @ Configures in/out lines in GDIR
+    mov r2, #0
+    str r2, [r1, #GPIO_DR]                  @ Sets DR as zero
 
 SET_STACK:
     @ Sets up corresponding stack in each mode
@@ -277,6 +279,7 @@ set_motor_speed:
     ldmfd sp!, {r0, r1}
 
     @ Checks if speed is valid.
+    
     cmp r1, #MAX_SPEED
     bhi return_minus_two
     cmp r1, #0
