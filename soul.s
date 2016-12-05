@@ -14,7 +14,7 @@
 
     @ Time constants.
     .set TIME_SZ,               100
-    .set FIFTEEN_MS,            15 @ TODO: descobrir valor da constante
+    .set FIFTEEN_MS,            1500 @ TODO: descobrir valor da constante
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -52,6 +52,8 @@
     @ Problem limitation constants.
     .set MAX_ALARMS,            8
     .set MAX_CALLBACKS,         8
+    .set CALLBACK_ARRAY_SIZE,   32
+    .set THRESHOLD_ARRAY_SIZE   16
     .set MAX_SPEED,             63
 
 .org 0x0
@@ -255,13 +257,12 @@ second_delay:
 
     @ verifica flag
 check_flag:
-    ldr r0, [r1, #GPIO_DR] @ coloca conetudo de PSR em r0
-    and r0, r0, #1
-    cmp r0, #1
+    ldr r0, [r1, #GPIO_DR] @ coloca conetudo de DR em r0
+    and r2, r0, #1
+    cmp r2, #1
     bne check_flag @ continua em loop ateh flag estar setada
 
     @ pega dados dos sonar_datas
-    ldr r0, [r1, #GPIO_DR] @ coloca conetudo de PSR em r0
     ldr r2, =SONAR_DATA_MASK @ coloca mascara de sonar data em r2
     and r0, r0, r2 @ coloca conteudo dos sonar datas em r0
     lsr r0, #6 @ ajusta a posicao dos bits
@@ -271,6 +272,39 @@ check_flag:
     movs pc, lr @ retorna
 
 register_proximity_callback:
+    ldmfd sp!, {r0, r1, r2}
+    @P0: Identificador do sonar (valores válidos: 0 a 15).
+    @P1: Limiar de distância (veja descrição em api_robot2.h).
+    @P2: ponteiro para função a ser chamada na ocorrência do alarme.
+
+    ldr r3, =VALIDATE_ID_MASK @ coloca mascara em r4
+    and r3, r3, r0 @ zera primeiros 4 bits do ID
+    cmp r3, #0 @ verifica se numero era maior q 4 bits -> invalido
+    beq return_minus_two @ caso afirmativo, retorna
+
+    ldr r3, =ACTIVE_CALLBACKS
+    ldr r3, [r3] @ coloca valor do callback counter em r3
+    cmp r3, #MAX_CALLBACKS @ compara com valor total de callbacks
+    beq return_minus_one @ retorna menos 1
+
+    stmfd sp!, {r4-r11, lr} @ empilha registradores
+
+    ldr r4, =CALLBACK_SONARS @ coloca endereco de vetor de sonares em r4
+    str r0, [r4 + r3] @ guarda identificador do sonar em lugar apropriado
+
+    ldr r4, =CALLBACK_THRESHOLDS
+    mul r5, r3, #2 @ multiplica numero de callbacks por 2
+    str r1, [r4 + r5]
+
+    ldr r4. =CALLBACK_FUNCIONS
+    mul r5, r3, #4 @ multiplica numero de callbacks por 4
+    str r2, [r4 + r5]
+
+    ldr r1, =ACTIVE_CALLBACKS @ carrega endereço do contador de callbacks em r1
+    add r3, r3, #1 @ incrementa numero de callbacks
+    str r3, [r1] @ salva novo valor de callbacks
+    mov r0, #0 @ coloca valor d eretorno em r0
+    ldmfd sp!, {r4-r11, lr}
     msr CPSR_c, 0x13
     movs pc, lr
 
@@ -428,10 +462,20 @@ IRQ_STACK:
 TIME_COUNTER:
     .word 0x0
 
+ACTIVE_CALLBACKS:
+    .word 0x0
 @ Information regarding the system alarms.
 ALARMS_NUM:
     .word 0x0
+
 ALARMS_FUNCTIONS:
     .space MAX_ALARMS
 ALARMS_TIMES:
     .space MAX_ALARMS
+
+CALLBACK_FUNCIONS:
+    .space CALLBACK_ARRAY_SIZE
+CALLBACK_SONARS:
+    .space MAX_CALLBACKS
+CALLBACK_THRESHOLDS:
+    .space THRESHOLD_ARRAY_SIZE
