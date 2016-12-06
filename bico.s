@@ -99,8 +99,6 @@ add_alarm:
     stmfd sp!, {r0}
     mov r7, #22                     @ Identifica a syscall 22 (set_alarm)
     svc 0x0
-    ldmfd sp!, {r1}
-    ldmfd sp!, {r0}
 
     ldmfd sp!, {r4-r11, pc}
 

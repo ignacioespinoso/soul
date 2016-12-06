@@ -72,9 +72,17 @@ interrupt_vector:
 .text
     @ Zera o contador
     ldr r2, =TIME_COUNTER
-    mov r0,#0
+    mov r0, #0
     str r0,[r2]
 
+    @ Zera a flag de checagem de alarmes e callbacks.
+    ldr r2, =INTERRUPTION_IS_ACTIVE
+    mov r0, #0
+    str r0, [r2]
+
+    ldr r2, =ALARMS_NUM
+    mov r0, #0
+    str r0, [r2]
 RESET_HANDLER:
     @Set interrupt table base address on coprocessor 15.
     ldr r0, =interrupt_vector
@@ -191,8 +199,8 @@ IRQ_HANDLER:
         beq end_check                           @ Jumps to the end if it doesnt.
 
         mov r1, #4
-        mul r0, r1, r0                          @ r0 now stores the alarm vector size.
-        mov r1, #0
+        mul r0, r1, r0                          @ r0 stores the alarm vector size.
+        mov r1, #0                              @ r1 stores the position.
         alarms_loop:                            @ Checks all alarms.
             ldr r2, =ALARMS_TIMES
             ldr r2, [r2, r1]                    @ Obtain the alarm time.
@@ -203,11 +211,11 @@ IRQ_HANDLER:
             cmp r3, r2                          @ Compares the system and the alarm time.
             blo next_alarm
 
-            stmfd sp!, {r0 - r3}                @ Caller save registers.
-            ldr r0, =ALARMS_FUNCTIONS
-            ldr r0, [r0, r1]                    @ Obtains the function pointer.
-            bl execute_user_function
-            ldmfd sp!, {r0-r3}
+        @    stmfd sp!, {r0 - r3}                @ Caller save registers.
+        @    ldr r0, =ALARMS_FUNCTIONS
+        @    ldr r0, [r0, r1]                    @ Obtains the function pointer.
+        @    bl execute_user_function
+        @    ldmfd sp!, {r0-r3}
 
             @ Deletes the current alarm, since it has been used.
             mov r4, r1
@@ -488,7 +496,7 @@ set_time:
 
 set_alarm:
     ldmfd sp!, {r0, r1}
-
+    stmfd sp!, {r4-r11}
     ldr r2, =ALARMS_NUM                         @ Loads the current number of alarms.
     ldr r2, [r2]
     cmp r2, #MAX_ALARMS                          @ Verifies if we can put one more alarm.
@@ -501,12 +509,16 @@ set_alarm:
     ldr r3, =TIME_COUNTER                       @ Loads the current system time.
     ldr r3, [r3]
     cmp r3, r1                                  @ Compares it with the time parameter.
-    bls return_minus_two                        @ Returns -2 if the parameter is invalid.
+    bhs return_minus_two                        @ Returns -2 if the parameter is invalid.
 
     ldr r3, =ALARMS_FUNCTIONS
+    sub r2, r2, #1
+    mov r4, #4                                  @ r2 possui o deslocamento para
+    mul r2, r2, r4                                  @ o novo alarme.
     str r0, [r3, r2]                            @ Stores the alarm function pointer.
     ldr r3, =ALARMS_TIMES
     str r1, [r3, r2]                            @ Stores the alarm time.
+    ldmfd sp!, {r4-r11}
     b return_zero
 
 irq_function_request:
