@@ -14,7 +14,7 @@
 
     @ Time constants.
     .set TIME_SZ,               100
-    .set FIFTEEN_MS,            1500 @ TODO: descobrir valor da constante
+    .set FIFTEEN_MS,            150
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -37,7 +37,7 @@
     @ Sonar constants.
     .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
     .set ZERO_TRIGGER_MASK,     0b11111111111111111111111111111101
-    .set SONAR_DATA_MASK,       0b00000000000000111111111111000000.
+    .set SONAR_DATA_MASK,       0b00000000000000111111111111000000
     .set ZERO_MUX_MASK,         0b11111111111111111111111111000011
 
     @ Motor constants.
@@ -53,7 +53,7 @@
     .set MAX_ALARMS,            8
     .set MAX_CALLBACKS,         8
     .set CALLBACK_ARRAY_SIZE,   32
-    .set THRESHOLD_ARRAY_SIZE   16
+    .set THRESHOLD_ARRAY_SIZE,  16
     .set MAX_SPEED,             63
 
 .org 0x0
@@ -163,7 +163,7 @@ SET_STACK:
 @ Handlers                                                                     @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
-    stmfd sp!, {r0-r12}
+    stmfd sp!, {r0-r12, lr}
 
     ldr r0, =INTERRUPTION_IS_ACTIVE
     ldr r1, [r0]
@@ -172,7 +172,6 @@ IRQ_HANDLER:
 
     mov r1, #1
     str r1, [r0] @ seta flag de interrupcao ativa
-
 
     @ Salva o valor 1 em GPT_SR
     ldr r1, =GPT_SR
@@ -185,43 +184,42 @@ IRQ_HANDLER:
     add r0, r0, #1 @ soma 1 no counter
     str r0, [r1] @ escreve novo valor em TIME_COUNTER
 
-    @ loop de 0 a ACTIVE_CALLBACKS
-    @ pegar o sonar respectivo -> ler
-    @ comaprar com a distancia respectiva
-    @ se menor chamar funcao respectiva
+    ldr r4, =ACTIVE_CALLBACKS
+    ldr r4, [r4] @ coloca numero de active callbacks em r6
+    mov r5, #0 @ zera r5 -> contador
 
-    ldr r5, =ACTIVE_CALLBACKS
-    ldr r1, [r5] @ coloca numero de active callbacks em r0
-    mov r2, #0 @ zera r2 -> contador
 callbacks_loop: @TODO -> trocar registradores p/ callee-savers
-    cmp r2, r1 @ comapra contador com numero de callbacks
+    cmp r4, r5 @ comapra contador com numero de callbacks
     beq end_loop
 
-    ldr r3, =CALLBACK_SONARS
-    ldrb r3, [r3 + r2] @ coloca id do sonar em rd
+    ldr r6, =CALLBACK_SONARS
+    ldrb r6, [r6, r5] @ coloca id do sonar em rd
     @ TODO chamada da read_sonar -> distancia esta em r0
 
-    ldr r3, =CALLBACK_THRESHOLDS
-    mul r4, r2, #2
-    ldrh r3, [r3 + r4] @ coloca threshold em r3
+    ldr r6, =CALLBACK_THRESHOLDS
+    mov r8, #2
+    mul r8, r5, r8 @ multiplica contador por 2
+    ldrh r3, [r6, r8] @ coloca threshold em r3
     cmp r0, r3
     bhi end_loop @ se distancia for maior que threshold, finaliza
 
-    ldr r3, =CALLBACK_FUNCIONS
-    mul r4, r2, #4
-    ldr r3, [r3 + r4] @ coloca em r3 o conteudo da funcao respectiva
+    ldr r6, =CALLBACK_FUNCIONS
+    mov r8, #4
+    mul r8, r5, r8
+    ldr r3, [r6, r8] @ coloca em r3 o conteudo da funcao respectiva
     @ TODO -> mudar de modo?
     blx r3 @ pula pra funcao
 
-    add r1, r1, #1
-    str r1, [r5]
-
+    add r5, r5, #1
+    ldr r4, =ACTIVE_CALLBACKS
+    str r5, [r4]
+    b callbacks_loop
 end_loop:
     ldr r0, =INTERRUPTION_IS_ACTIVE
     mov r1, #0
     str r1, [r0] @ seta flag de interrupcoes como not-active
 end_irq:
-    ldmfd sp!, {r0-r12}
+    ldmfd sp!, {r0-r12, lr}
     @ Corrige o valor de LR
     sub lr, lr, #4
     movs pc, lr
@@ -336,15 +334,17 @@ register_proximity_callback:
     stmfd sp!, {r4-r11, lr} @ empilha registradores
 
     ldr r4, =CALLBACK_SONARS @ coloca endereco de vetor de sonares em r4
-    str r0, [r4 + r3] @ guarda identificador do sonar em lugar apropriado
+    str r0, [r4, r3] @ guarda identificador do sonar em lugar apropriado
 
     ldr r4, =CALLBACK_THRESHOLDS
-    mul r5, r3, #2 @ multiplica numero de callbacks por 2
-    str r1, [r4 + r5]
+    mov r5, #2
+    mul r5, r3, r5 @ multiplica numero de callbacks por 2
+    str r1, [r4, r5]
 
-    ldr r4. =CALLBACK_FUNCIONS
-    mul r5, r3, #4 @ multiplica numero de callbacks por 4
-    str r2, [r4 + r5]
+    ldr r4, =CALLBACK_FUNCIONS
+    mov r5, #4
+    mul r5, r3, r5 @ multiplica numero de callbacks por 4
+    str r2, [r4, r5]
 
     ldr r1, =ACTIVE_CALLBACKS @ carrega endereço do contador de callbacks em r1
     add r3, r3, #1 @ incrementa numero de callbacks
@@ -425,6 +425,7 @@ set_motors_speed:
 
     ldr r2, =GPIO_BASE
     ldr r2, [r2, #GPIO_DR]
+
 
     ldr r3, =MOTORS_MASK
     bic r2, r2, r3                              @ Clears the 1st and 2nd motor GPIO_DR bits.
