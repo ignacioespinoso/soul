@@ -56,6 +56,7 @@ read_sonar:
     mov r7, #16                     @ Identifica a syscall 16 (read_sonar).
     svc 0x0
 
+    ldmfd sp!, {r0}
     ldmfd sp!, {r4-r11, pc}
 
 read_sonars:
@@ -81,12 +82,11 @@ loop:
 register_proximity_callback:
     stmfd sp!, {r4-r11, lr}
 
-    stmfd sp!, {r2}
-    stmfd sp!, {r1}
-    stmfd sp!, {r0}
+    stmfd sp!, {r0-r2}
     mov r7, #17                      @ Identifica a syscall 17 (register_proximity_callback).
     svc 0x0
 
+    ldmfd sp!, {r0-r2}
     ldmfd sp!, {r4-r11, pc}
 
 @******************************************************************************@
@@ -99,6 +99,8 @@ add_alarm:
     stmfd sp!, {r0}
     mov r7, #22                     @ Identifica a syscall 22 (set_alarm)
     svc 0x0
+    ldmfd sp!, {r1}
+    ldmfd sp!, {r0}
 
     ldmfd sp!, {r4-r11, pc}
 

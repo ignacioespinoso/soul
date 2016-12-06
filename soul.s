@@ -72,17 +72,9 @@ interrupt_vector:
 .text
     @ Zera o contador
     ldr r2, =TIME_COUNTER
-    mov r0, #0
+    mov r0,#0
     str r0,[r2]
 
-    @ Zera a flag de checagem de alarmes e callbacks.
-    ldr r2, =INTERRUPTION_IS_ACTIVE
-    mov r0, #0
-    str r0, [r2]
-
-    ldr r2, =ALARMS_NUM
-    mov r0, #0
-    str r0, [r2]
 RESET_HANDLER:
     @Set interrupt table base address on coprocessor 15.
     ldr r0, =interrupt_vector
@@ -158,10 +150,10 @@ SET_STACK:
     @ Sets up corresponding stack in each mode
     ldr sp, =SUPERVISOR_STACK
 
-    msr CPSR_c, 0x1F
+    msr CPSR_c, 0xDF
     ldr sp, =SYSTEM_STACK
 
-    msr CPSR_c, 0x12
+    msr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
 
     msr CPSR_c, 0x10
@@ -184,92 +176,83 @@ IRQ_HANDLER:
     add r0, r0, #1 @ soma 1 no counter
     str r0, [r1] @ escreve novo valor em TIME_COUNTER
 
-    ldr r0, =INTERRUPTION_IS_ACTIVE             @ If alarms and/or callbacks are
-    ldr r1, [r0]                                    @ being checked...
+    ldr r0, =INTERRUPTION_IS_ACTIVE
+    ldr r1, [r0]
     cmp r1, #0
-    bne end_irq                                 @ Don't check them.
+    bne end_irq @ verifica se uma interrupcao ja esta ativa
 
     mov r1, #1
     str r1, [r0] @ seta flag de interrupcao ativa
 
-    alarms_check:
-        ldr r0, =ALARMS_NUM                     @ Verifies if the system has any alarm.
-        ldr r0, [r0]
-        cmp r0, #0
-        beq end_check                           @ Jumps to the end if it doesnt.
+    ldr r4, =ACTIVE_CALLBACKS
+    ldr r4, [r4] @ coloca numero de active callbacks em r4
+    mov r5, #0 @ zera r5 -> contador
 
-        mov r1, #4
-        mul r0, r1, r0                          @ r0 stores the alarm vector size.
-        mov r1, #0                              @ r1 stores the position.
-        alarms_loop:                            @ Checks all alarms.
-            ldr r2, =ALARMS_TIMES
-            ldr r2, [r2, r1]                    @ Obtain the alarm time.
+callbacks_loop:
+    cmp r4, r5 @ comapra contador com numero de callbacks
+    beq end_loop
 
-            ldr r3, =TIME_COUNTER
-            ldr r3, [r3]                        @ Obtain the current system time.
+    ldr r6, =CALLBACK_SONARS
+    ldrb r6, [r6, r5] @ coloca id do sonar em rd
 
-            cmp r3, r2                          @ Compares the system and the alarm time.
-            blo next_alarm
+    msr CPSR_c, 0x1F @ muda para modo system
+    sub r10, sp, #4
+    ldr r9, [r10] @ salva elemento antes da pilha
+    stmfd sp!, {r6} @ empilha id do sonar
+    mov r7, #16
+    svc 0x0 @ chama read sonar
+    str r9, [sp] @ coloca elemento de volta antes da pilha
+    add sp, sp, #4 @ conserta endereco de sp
+    msr CPSR_c, 0xD2 @ volta pra modo IRQ
+    @ distancia esta em r0
 
-        @    stmfd sp!, {r0 - r3}                @ Caller save registers.
-        @    ldr r0, =ALARMS_FUNCTIONS
-        @    ldr r0, [r0, r1]                    @ Obtains the function pointer.
-        @    bl execute_user_function
-        @    ldmfd sp!, {r0-r3}
+    ldr r6, =CALLBACK_THRESHOLDS
+    mov r8, #2
+    mul r8, r5, r8 @ multiplica contador por 2
+    ldrh r3, [r6, r8] @ coloca threshold em r3
+    cmp r0, r3
+    bhi callbacks_loop @ se distancia for maior que threshold, continua
 
-            @ Deletes the current alarm, since it has been used.
-            mov r4, r1
-            delete_alarm_loop:
-                add r4, r4, #4                  @ Sets r4 to check the next alarm.
-                ldr r2, =ALARMS_TIMES
-                ldr r3, =ALARMS_FUNCTIONS
-                ldr r5, [r2, r4]                @ Obtain the next alarm time.
-                ldr r6, [r3, r4]                @ Obtain the next alarm function.
-                sub r4, r4, #4                  @ Sets r4 to check the current alarm.
-                str r5, [r2, r4]                @ Copies the the next alarm time to the current one.
-                str r6, [r3, r4]                @ Same for the function.
+    ldr r6, =CALLBACK_FUNCIONS
+    mov r8, #4
+    mul r8, r5, r8
+    ldr r0, [r6, r8] @ coloca em r0 o ponteiro da funcao respectiva
+    bl execute_user_function @ executa funcao em modo apropriado e retorna
 
-                add r4, r4, #4                  @ Sets r4 to check next alarm
-                cmp r4, r0                          @ if it exists.
-                blo delete_alarm_loop
+    add r5, r5, #1 @ incrementa contador
+    ldr r4, =ACTIVE_CALLBACKS
+    str r5, [r4]
+    b callbacks_loop
 
-        next_alarm:
-            add r1, r1, #4                      @ Sets value to check next alarm
-            cmp r1, r0                              @ if it exists.
-            blo alarms_loop
-
-        end_check:
-            ldr r0, =INTERRUPTION_IS_ACTIVE
-            mov r1, #0                          @ No verification is being run
-            str r1, [r0]                            @ anymore.
+end_loop:
+    ldr r0, =INTERRUPTION_IS_ACTIVE
+    mov r1, #0
+    str r1, [r0] @ seta flag de interrupcoes como not-active
 end_irq:
     ldmfd sp!, {r0-r12, lr}
     @ Corrige o valor de LR
     sub lr, lr, #4
     movs pc, lr
-
 execute_user_function:
     stmfd sp!, {r4-r12}                         @ Saves current register values.
-
-    mov r1, lr                                  @ Saves current IRQ LR.
+    mov r6, lr                                  @ Saves current IRQ LR.
     msr CPSR_c, #0x10                           @ Changes to user mode.
-
-    mov r2, lr                                  @ Saves current user LR.
+    mov r5, lr                                  @ Saves current user LR.
     blx r0                                      @ Execute the assigned function.
-    mov lr, r2                                  @ Return user LR to previous
-                                                    @ state.
+    mov lr, r5                                  @ Return user LR to previous
+                                                        @ state.
     mov r7, #12                                 @ Syscall to return to IRQ mode.
     svc 0x0
 
     ldmfd sp!, {r4-r12}                         @ Obtain saved register values.
-    mov lr, r1                                  @ IRQ LR back to previous state.
+    mov lr, r6                                  @ IRQ LR back to previous state.
     mov pc, lr
 
 @@@@@@@@@@@@@@@@@@@
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
-    msr CPSR_c, 0x1F                            @ Changes to system mode.
+    msr CPSR_c, 0x1F                            @ Changes to system mode
 
     @ Transfers control flow to corresponding syscall
     cmp r7, #16
@@ -293,8 +276,8 @@ SYSCALL_HANDLER:
     movs pc, lr
 
 read_sonar:
-    ldmfd sp!, {r0} @ desempilha parametro dado e coloca em r0
-    stmfd sp!, {r4-r11, lr} @ salva registradores
+    ldr r0, [sp] @ le parametro dado e coloca em r0
+    stmfd sp!, {r4-r11, lr} @ salvab registradores
     ldr r2, =VALIDATE_ID_MASK
     and r1, r0, r2 @ valida id do sonar
     cmp r1, #0
@@ -359,7 +342,7 @@ check_flag:
     movs pc, lr @ retorna
 
 register_proximity_callback:
-    ldmfd sp!, {r0, r1, r2}
+    ldmfd sp!, {r0-r2}
     @P0: Identificador do sonar (valores válidos: 0 a 15).
     @P1: Limiar de distância (veja descrição em api_robot2.h).
     @P2: ponteiro para função a ser chamada na ocorrência do alarme.
@@ -367,7 +350,7 @@ register_proximity_callback:
     ldr r3, =VALIDATE_ID_MASK @ coloca mascara em r4
     and r3, r3, r0 @ zera primeiros 4 bits do ID
     cmp r3, #0 @ verifica se numero era maior q 4 bits -> invalido
-    beq return_minus_two @ caso afirmativo, retorna
+    bne return_minus_two @ caso afirmativo, retorna
 
     ldr r3, =ACTIVE_CALLBACKS
     ldr r3, [r3] @ coloca valor do callback counter em r3
@@ -496,7 +479,7 @@ set_time:
 
 set_alarm:
     ldmfd sp!, {r0, r1}
-    stmfd sp!, {r4-r11}
+
     ldr r2, =ALARMS_NUM                         @ Loads the current number of alarms.
     ldr r2, [r2]
     cmp r2, #MAX_ALARMS                          @ Verifies if we can put one more alarm.
@@ -509,24 +492,21 @@ set_alarm:
     ldr r3, =TIME_COUNTER                       @ Loads the current system time.
     ldr r3, [r3]
     cmp r3, r1                                  @ Compares it with the time parameter.
-    bhs return_minus_two                        @ Returns -2 if the parameter is invalid.
+    bls return_minus_two                        @ Returns -2 if the parameter is invalid.
 
     ldr r3, =ALARMS_FUNCTIONS
-    sub r2, r2, #1
-    mov r4, #4                                  @ r2 possui o deslocamento para
-    mul r2, r2, r4                                  @ o novo alarme.
     str r0, [r3, r2]                            @ Stores the alarm function pointer.
     ldr r3, =ALARMS_TIMES
     str r1, [r3, r2]                            @ Stores the alarm time.
-    ldmfd sp!, {r4-r11}
     b return_zero
 
 irq_function_request:
     mov r3, lr                                  @ Obtain supervisor LR.
     msr CPSR_c, 0x1F                            @ Switches to IRQ mode.
     mov lr, r3                                  @ Update IRQ LR to equal SVC LR.
-
     mov pc, lr
+
+
 @@@@@@@@@@@@@@@@@@@@@
 @ Return options    @
 @@@@@@@@@@@@@@@@@@@@@
@@ -564,13 +544,13 @@ TIME_COUNTER:
 
 ACTIVE_CALLBACKS:
     .word 0x0
+@ Information regarding the system alarms.
+ALARMS_NUM:
+    .word 0x0
 
-@ Information regarding the system alarms and callbacks.
 INTERRUPTION_IS_ACTIVE:
     .word 0x0
 
-ALARMS_NUM:
-    .word 0x0
 ALARMS_FUNCTIONS:
     .space MAX_ALARMS
 ALARMS_TIMES:
