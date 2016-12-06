@@ -37,7 +37,7 @@
     @ Sonar constants.
     .set VALIDATE_ID_MASK,      0b11111111111111111111111111110000
     .set ZERO_TRIGGER_MASK,     0b11111111111111111111111111111101
-    .set SONAR_DATA_MASK,       0b00000000000000000011111111111100
+    .set SONAR_DATA_MASK,       0b00000000000000111111111111000000.
     .set ZERO_MUX_MASK,         0b11111111111111111111111111000011
 
     @ Motor constants.
@@ -164,6 +164,16 @@ SET_STACK:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
     stmfd sp!, {r0-r12}
+
+    ldr r0, =INTERRUPTION_IS_ACTIVE
+    ldr r1, [r0]
+    cmp r1, #0
+    bne end_irq @ verifica se uma interrupcao ja esta ativa
+
+    mov r1, #1
+    str r1, [r0] @ seta flag de interrupcao ativa
+
+
     @ Salva o valor 1 em GPT_SR
     ldr r1, =GPT_SR
     mov r0, #1
@@ -175,6 +185,42 @@ IRQ_HANDLER:
     add r0, r0, #1 @ soma 1 no counter
     str r0, [r1] @ escreve novo valor em TIME_COUNTER
 
+    @ loop de 0 a ACTIVE_CALLBACKS
+    @ pegar o sonar respectivo -> ler
+    @ comaprar com a distancia respectiva
+    @ se menor chamar funcao respectiva
+
+    ldr r5, =ACTIVE_CALLBACKS
+    ldr r1, [r5] @ coloca numero de active callbacks em r0
+    mov r2, #0 @ zera r2 -> contador
+callbacks_loop: @TODO -> trocar registradores p/ callee-savers
+    cmp r2, r1 @ comapra contador com numero de callbacks
+    beq end_loop
+
+    ldr r3, =CALLBACK_SONARS
+    ldrb r3, [r3 + r2] @ coloca id do sonar em rd
+    @ TODO chamada da read_sonar -> distancia esta em r0
+
+    ldr r3, =CALLBACK_THRESHOLDS
+    mul r4, r2, #2
+    ldrh r3, [r3 + r4] @ coloca threshold em r3
+    cmp r0, r3
+    bhi end_loop @ se distancia for maior que threshold, finaliza
+
+    ldr r3, =CALLBACK_FUNCIONS
+    mul r4, r2, #4
+    ldr r3, [r3 + r4] @ coloca em r3 o conteudo da funcao respectiva
+    @ TODO -> mudar de modo?
+    blx r3 @ pula pra funcao
+
+    add r1, r1, #1
+    str r1, [r5]
+
+end_loop:
+    ldr r0, =INTERRUPTION_IS_ACTIVE
+    mov r1, #0
+    str r1, [r0] @ seta flag de interrupcoes como not-active
+end_irq:
     ldmfd sp!, {r0-r12}
     @ Corrige o valor de LR
     sub lr, lr, #4
@@ -466,6 +512,9 @@ ACTIVE_CALLBACKS:
     .word 0x0
 @ Information regarding the system alarms.
 ALARMS_NUM:
+    .word 0x0
+
+INTERRUPTION_IS_ACTIVE:
     .word 0x0
 
 ALARMS_FUNCTIONS:
