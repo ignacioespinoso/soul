@@ -81,6 +81,7 @@ interrupt_vector:
     mov r0, #0
     str r0, [r2]
 
+    @ Zera a quantidade de alarmes.
     ldr r2, =ALARMS_NUM
     mov r0, #0
     str r0, [r2]
@@ -159,13 +160,13 @@ SET_STACK:
     @ Sets up corresponding stack in each mode
     ldr sp, =SUPERVISOR_STACK
 
-    msr CPSR_c, 0x1F
+    msr CPSR_c, 0xDF
     ldr sp, =SYSTEM_STACK
 
-    msr CPSR_c, 0x12
+    msr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
 
-    msr CPSR_c, 0x10
+    msr CPSR_c, 0xD0
     ldr pc, =USER_CODE_ADDRESS
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
