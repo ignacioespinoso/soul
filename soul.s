@@ -13,7 +13,7 @@
     .set GPT_SR,                0x53FA0008
 
     @ Time constants.
-    .set TIME_SZ,               100
+    .set TIME_SZ,               10000
     .set FIFTEEN_MS,            150
 
     @ TZIC constants.
@@ -51,6 +51,7 @@
 
     @ Problem limitation constants.
     .set MAX_ALARMS,            8
+    .set ALARMS_ARRAY_SIZE,     32
     .set MAX_CALLBACKS,         8
     .set CALLBACK_ARRAY_SIZE,   32
     .set THRESHOLD_ARRAY_SIZE,  16
@@ -189,11 +190,15 @@ IRQ_HANDLER:
     cmp r1, #0
     bne end_irq                                 @ Don't check them.
 
+    mrs r0, SPSR
+    stmfd sp!, {r0}                             @ Saves SPSR.
+
+    ldr r0, =INTERRUPTION_IS_ACTIVE
     mov r1, #1
     str r1, [r0] @ seta flag de interrupcao ativa
 
     alarms_check:
-        ldr r0, =ALARMS_NUM                     @ Verifies if the system has any alarm.
+        ldr r0, =ALARMS_NUM                     @ Does the system have any alarm?
         ldr r0, [r0]
         cmp r0, #0
         beq end_check                           @ Jumps to the end if it doesnt.
@@ -211,27 +216,35 @@ IRQ_HANDLER:
             cmp r3, r2                          @ Compares the system and the alarm time.
             blo next_alarm
 
-        @    stmfd sp!, {r0 - r3}                @ Caller save registers.
-        @    ldr r0, =ALARMS_FUNCTIONS
-        @    ldr r0, [r0, r1]                    @ Obtains the function pointer.
-        @    bl execute_user_function
-        @    ldmfd sp!, {r0-r3}
+            stmfd sp!, {r0-r3, lr}            @ Caller save registers.
+            ldr r0, =ALARMS_FUNCTIONS
+            ldr r0, [r0, r1]                    @ Obtains the function pointer.
+            bl execute_user_function
+            ldmfd sp!, {r0-r3, lr}
 
             @ Deletes the current alarm, since it has been used.
-            mov r4, r1
-            delete_alarm_loop:
-                add r4, r4, #4                  @ Sets r4 to check the next alarm.
-                ldr r2, =ALARMS_TIMES
-                ldr r3, =ALARMS_FUNCTIONS
-                ldr r5, [r2, r4]                @ Obtain the next alarm time.
-                ldr r6, [r3, r4]                @ Obtain the next alarm function.
-                sub r4, r4, #4                  @ Sets r4 to check the current alarm.
-                str r5, [r2, r4]                @ Copies the the next alarm time to the current one.
-                str r6, [r3, r4]                @ Same for the function.
-
-                add r4, r4, #4                  @ Sets r4 to check next alarm
-                cmp r4, r0                          @ if it exists.
-                blo delete_alarm_loop
+            @mov r4, r1
+            @mov r5, #0                         @ Set r5 as 0.
+            @ldr r2, =ALARMS_TIMES
+            @ldr r3, =ALARMS_FUNCTIONS
+            @str r5, [r2, r4]                   @ Store 0 in current alarm time.
+            @str r5, [r3, r4]                   @ Same for the function pointer.
+            @cmp r4, r0                         @ If there's not another alarm,
+            @bgt end_check                           @ Ends the alarm check.
+            @
+            @delete_alarm_loop:
+            @    add r4, r4, #4                 @ Sets r4 to check the next alarm.
+            @    ldr r2, =ALARMS_TIMES
+            @    ldr r3, =ALARMS_FUNCTIONS
+            @    ldr r5, [r2, r4]               @ Obtain the next alarm time.
+            @    ldr r6, [r3, r4]               @ Obtain the next alarm function.
+            @    sub r4, r4, #4                 @ Sets r4 to check the current alarm.
+            @    str r5, [r2, r4]               @ Copies the the next alarm time to the current one.
+            @    str r6, [r3, r4]               @ Same for the function.
+            @
+            @    add r4, r4, #4                 @ Sets r4 to check next alarm
+            @    cmp r4, r0                          @ if it exists.
+            @    blo delete_alarm_loop
 
         next_alarm:
             add r1, r1, #4                      @ Sets value to check next alarm
@@ -240,8 +253,10 @@ IRQ_HANDLER:
 
         end_check:
             ldr r0, =INTERRUPTION_IS_ACTIVE
-            mov r1, #0                          @ No verification is being run
+            mov r1, #0                        @ No verification is being run
             str r1, [r0]                            @ anymore.
+            ldmfd sp!, {r0}                   @ Get SPSR previous value.
+            msr SPSR, r0
 end_irq:
     ldmfd sp!, {r0-r12, lr}
     @ Corrige o valor de LR
@@ -249,20 +264,18 @@ end_irq:
     movs pc, lr
 
 execute_user_function:
-    stmfd sp!, {r4-r12}                         @ Saves current register values.
+    stmfd sp!, {r4-r12, lr}                 @ Saves current register values.
 
-    mov r1, lr                                  @ Saves current IRQ LR.
-    msr CPSR_c, #0x10                           @ Changes to user mode.
+    msr CPSR_c, #0x10                       @ Changes to user mode.
 
-    mov r2, lr                                  @ Saves current user LR.
-    blx r0                                      @ Execute the assigned function.
-    mov lr, r2                                  @ Return user LR to previous
-                                                    @ state.
+    mov r11, lr                              @ Saves current user LR.
+    blx r0                                  @ Execute the assigned function.
+    mov lr, r11                              @ Return user LR to previous
+                                                @ state.
     mov r7, #12                                 @ Syscall to return to IRQ mode.
     svc 0x0
 
-    ldmfd sp!, {r4-r12}                         @ Obtain saved register values.
-    mov lr, r1                                  @ IRQ LR back to previous state.
+    ldmfd sp!, {r4-r12, lr}                     @ Obtain saved register values.
     mov pc, lr
 
 @@@@@@@@@@@@@@@@@@@
@@ -522,11 +535,11 @@ set_alarm:
     b return_zero
 
 irq_function_request:
+    msr CPSR_c, 0x13                            @ Switches to supervisor mode.
     mov r3, lr                                  @ Obtain supervisor LR.
-    msr CPSR_c, 0x1F                            @ Switches to IRQ mode.
-    mov lr, r3                                  @ Update IRQ LR to equal SVC LR.
+    msr CPSR_c, 0xD2                            @ Switches to IRQ mode.
 
-    mov pc, lr
+    mov pc, r3                                  @ Return to supervisor LR
 @@@@@@@@@@@@@@@@@@@@@
 @ Return options    @
 @@@@@@@@@@@@@@@@@@@@@
@@ -572,9 +585,9 @@ INTERRUPTION_IS_ACTIVE:
 ALARMS_NUM:
     .word 0x0
 ALARMS_FUNCTIONS:
-    .space MAX_ALARMS
+    .space ALARMS_ARRAY_SIZE
 ALARMS_TIMES:
-    .space MAX_ALARMS
+    .space ALARMS_ARRAY_SIZE
 
 CALLBACK_FUNCIONS:
     .space CALLBACK_ARRAY_SIZE
