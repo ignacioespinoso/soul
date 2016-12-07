@@ -166,7 +166,7 @@ SET_STACK:
     msr CPSR_c, 0xD2
     ldr sp, =IRQ_STACK
 
-    msr CPSR_c, 0xD0
+    msr CPSR_c, 0x10
     ldr pc, =USER_CODE_ADDRESS
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -174,7 +174,8 @@ SET_STACK:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 IRQ_HANDLER:
     stmfd sp!, {r0-r12, lr}
-
+    mrs r0, SPSR
+    stmfd sp!, {r0}                             @ Saves SPSR.
     @ Salva o valor 1 em GPT_SR
     ldr r1, =GPT_SR
     mov r0, #1
@@ -191,8 +192,7 @@ IRQ_HANDLER:
     cmp r1, #0
     bne end_irq                                 @ Don't check them.
 
-    mrs r0, SPSR
-    stmfd sp!, {r0}                             @ Saves SPSR.
+
 
     ldr r0, =INTERRUPTION_IS_ACTIVE
     mov r1, #1
@@ -217,7 +217,7 @@ IRQ_HANDLER:
             cmp r3, r2                          @ Compares the system and the alarm time.
             blo next_alarm
 
-            stmfd sp!, {r0-r3, lr}            @ Caller save registers.
+            stmfd sp!, {r0-r3, lr}              @ Caller save registers.
             ldr r0, =ALARMS_FUNCTIONS
             ldr r0, [r0, r1]                    @ Obtains the function pointer.
             bl execute_user_function
@@ -256,9 +256,10 @@ IRQ_HANDLER:
             ldr r0, =INTERRUPTION_IS_ACTIVE
             mov r1, #0                        @ No verification is being run
             str r1, [r0]                            @ anymore.
-            ldmfd sp!, {r0}                   @ Get SPSR previous value.
-            msr SPSR, r0
+
 end_irq:
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
     ldmfd sp!, {r0-r12, lr}
     @ Corrige o valor de LR
     sub lr, lr, #4
@@ -269,11 +270,11 @@ execute_user_function:
 
     msr CPSR_c, #0x10                       @ Changes to user mode.
 
-    mov r11, lr                              @ Saves current user LR.
+    mov r11, lr                             @ Saves current user LR.
     blx r0                                  @ Execute the assigned function.
     mov lr, r11                              @ Return user LR to previous
                                                 @ state.
-    mov r7, #12                                 @ Syscall to return to IRQ mode.
+    mov r7, #12                             @ Syscall to return to IRQ mode.
     svc 0x0
 
     ldmfd sp!, {r4-r12, lr}                     @ Obtain saved register values.
@@ -283,6 +284,10 @@ execute_user_function:
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
+    stmfd sp!, {r0-r12, lr}                     @ Save register values.
+    mrs r0, SPSR
+    stmfd sp!, {r0}                             @ Saves SPSR.
+
     msr CPSR_c, 0x1F                            @ Changes to system mode.
 
     @ Transfers control flow to corresponding syscall
@@ -369,7 +374,11 @@ check_flag:
     lsr r0, #6 @ ajusta a posicao dos bits
 
     ldmfd sp!, {r4-r11, lr} @ desempilha registradores
+
     msr CPSR_c, 0x13    @ muda de modo
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}             @ Get previous register values.
     movs pc, lr @ retorna
 
 register_proximity_callback:
@@ -409,6 +418,10 @@ register_proximity_callback:
     mov r0, #0 @ coloca valor d eretorno em r0
     ldmfd sp!, {r4-r11, lr}
     msr CPSR_c, 0x13
+
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 set_motor_speed:
@@ -498,6 +511,10 @@ get_time:
     ldr r0, =TIME_COUNTER
     ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
     msr CPSR_c, 0x13
+
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 set_time:
@@ -506,6 +523,10 @@ set_time:
 
     str r0, [r1]                                @ Sets up TIME_COUNTER.
     msr CPSR_c, 0x13
+
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 set_alarm:
@@ -528,7 +549,7 @@ set_alarm:
     ldr r3, =ALARMS_FUNCTIONS
     sub r2, r2, #1
     mov r4, #4                                  @ r2 possui o deslocamento para
-    mul r2, r2, r4                                  @ o novo alarme.
+    mul r2, r4, r2                                  @ o novo alarme.
     str r0, [r3, r2]                            @ Stores the alarm function pointer.
     ldr r3, =ALARMS_TIMES
     str r1, [r3, r2]                            @ Stores the alarm time.
@@ -537,6 +558,10 @@ set_alarm:
 
 irq_function_request:
     msr CPSR_c, 0x13                            @ Switches to supervisor mode.
+
+    ldmfd sp!, {r0}                             @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     mov r3, lr                                  @ Obtain supervisor LR.
     msr CPSR_c, 0xD2                            @ Switches to IRQ mode.
 
@@ -547,16 +572,26 @@ irq_function_request:
 return_zero:
     mov r0, #0
     msr CPSR_c, 0x13
+
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 return_minus_one:
     mov r0, #-1
     msr CPSR_c, 0x13
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 return_minus_two:
     mov r0, #-2
     msr CPSR_c, 0x13
+    ldmfd sp!, {r0}                   @ Get SPSR previous value.
+    msr SPSR, r0
+    ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
