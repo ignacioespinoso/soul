@@ -221,16 +221,16 @@ IRQ_HANDLER:
             ldmfd sp!, {r0-r3, lr}
 
             @ Deletes the current alarm, since it has been used.
-            mov r3, r1                          @ R3 also stores the position.
             mov r2, #0                          @ R2 stores verified length.
             ldr r3, =ALARMS_TIMES
             ldr r4, =ALARMS_FUNCTIONS
-            str r2, [r2, r4]                    @ Store 0 in current alarm time.
-            str r2, [r3, r4]                    @ Same for the function pointer.
+            str r2, [r3]                    @ Store 0 in current alarm time.
+            str r2, [r4]                    @ Same for the function pointer.
             add r2, r2, #4                      @ Updates verified length
             cmp r2, r0                          @ If there's not another alarm,
             bgt end_check                           @ Ends the alarm check.
 
+            mov r3, r1
             delete_alarm_loop:
                 add r3, r3, #4                  @ Sets r3 to check the next alarm.
                 ldr r4, =ALARMS_TIMES
@@ -245,6 +245,12 @@ IRQ_HANDLER:
                 add r3, r3, #4                  @ Sets R3 to check next alarm
                 cmp r2, r0                           @ if it exists.
                 blo delete_alarm_loop
+
+            ldr r5, =ALARMS_NUM                 @ Obtain number of alarms.
+            ldr r5, [r5]
+            sub r5, r5, #1                      @ Remove 1 from that amount.
+            ldr r6, =ALARMS_NUM
+            str r5, [r6]                        @ Update number of alarms.
 
         next_alarm:
             add r1, r1, #4                      @ Sets value to check next alarm
