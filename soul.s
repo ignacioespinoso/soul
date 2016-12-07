@@ -287,7 +287,7 @@ SYSCALL_HANDLER:
     mrs r0, SPSR
     stmfd sp!, {r0}                             @ Saves SPSR.
 
-    msr CPSR_c, 0x1F                            @ Changes to system mode.
+    msr CPSR_c, 0xDF                            @ Changes to system mode.
 
     @ Transfers control flow to corresponding syscall
     cmp r7, #16
@@ -572,7 +572,7 @@ return_zero:
     msr CPSR_c, 0x13
 
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r4
+    msr SPSR, r0
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
@@ -580,7 +580,7 @@ return_minus_one:
     mov r0, #-1
     msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r4
+    msr SPSR, r0
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
