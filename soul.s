@@ -13,7 +13,7 @@
 
     @ Time constants.
     .set TIME_SZ,               10000
-    .set FIFTEEN_MS,            150
+    .set FIFTEEN_MS,            2
 
     @ TZIC constants.
     .set TZIC_BASE,             0x0FFFC000
@@ -289,11 +289,11 @@ execute_user_function:
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
-    stmfd sp!, {r0-r12, lr}                     @ Save SVC register values.
+    stmfd sp!, {r1-r12, lr}                     @ Save SVC register values.
     mrs r0, SPSR
     stmfd sp!, {r0}                             @ Saves SPSR.
 
-    msr CPSR_c, 0xDF                            @ Changes to system mode.
+    msr CPSR_c, 0x1F                            @ Changes to system mode.
 
     @ Transfers control flow to corresponding syscall
     cmp r7, #16
@@ -381,9 +381,9 @@ check_flag:
     ldmfd sp!, {r4-r11, lr} @ desempilha registradores
 
     msr CPSR_c, 0x13    @ muda de modo
-    ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}             @ Get previous register values.
+    ldmfd sp!, {r4}                   @ Get SPSR previous value.
+    msr SPSR, r4
+    ldmfd sp!, {r1-r12, lr}             @ Get previous register values.
     movs pc, lr @ retorna
 
 register_proximity_callback:
@@ -426,7 +426,7 @@ register_proximity_callback:
     msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
     msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 set_motor_speed:
@@ -520,7 +520,7 @@ get_time:
     msr CPSR_c, 0x13
     ldmfd sp!, {r9}                             @ Get SPSR previous value.
     msr SPSR, r9                                @ Same for other registers.
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 set_time:
@@ -532,7 +532,7 @@ set_time:
 
     ldmfd sp!, {r9}                             @ Get SPSR previous value.
     msr SPSR, r9                                @ Same for other registers.
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 set_alarm:
@@ -565,7 +565,7 @@ irq_function_request:
 
     ldmfd sp!, {r9}                             @ Get SPSR previous value.
     msr SPSR, r9
-    ldmfd sp!, {r0-r12, lr}                     @ Same for other registers.
+    ldmfd sp!, {r1-r12, lr}                     @ Same for other registers.
     mov r11, lr                                 @ Obtain supervisor LR.
     msr CPSR_c, 0xD2                            @ Switches to IRQ mode.
 
@@ -579,7 +579,7 @@ return_zero:
 
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
     msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 return_minus_one:
@@ -587,7 +587,7 @@ return_minus_one:
     msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
     msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 return_minus_two:
@@ -595,7 +595,7 @@ return_minus_two:
     msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
     msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}
+    ldmfd sp!, {r1-r12, lr}
     movs pc, lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
