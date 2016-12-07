@@ -10,7 +10,6 @@
     .set GPT_OCR1,              0x10
     .set GPT_IR,                0xC
     .set GPT_SR,                0x53FA0008
-    .set GPT_SR,                0x53FA0008
 
     @ Time constants.
     .set TIME_SZ,               10000
@@ -192,8 +191,6 @@ IRQ_HANDLER:
     cmp r1, #0
     bne end_irq                                 @ Don't check them.
 
-
-
     ldr r0, =INTERRUPTION_IS_ACTIVE
     mov r1, #1
     str r1, [r0] @ seta flag de interrupcao ativa
@@ -224,28 +221,30 @@ IRQ_HANDLER:
             ldmfd sp!, {r0-r3, lr}
 
             @ Deletes the current alarm, since it has been used.
-            @mov r4, r1
-            @mov r5, #0                         @ Set r5 as 0.
-            @ldr r2, =ALARMS_TIMES
-            @ldr r3, =ALARMS_FUNCTIONS
-            @str r5, [r2, r4]                   @ Store 0 in current alarm time.
-            @str r5, [r3, r4]                   @ Same for the function pointer.
-            @cmp r4, r0                         @ If there's not another alarm,
-            @bgt end_check                           @ Ends the alarm check.
-            @
-            @delete_alarm_loop:
-            @    add r4, r4, #4                 @ Sets r4 to check the next alarm.
-            @    ldr r2, =ALARMS_TIMES
-            @    ldr r3, =ALARMS_FUNCTIONS
-            @    ldr r5, [r2, r4]               @ Obtain the next alarm time.
-            @    ldr r6, [r3, r4]               @ Obtain the next alarm function.
-            @    sub r4, r4, #4                 @ Sets r4 to check the current alarm.
-            @    str r5, [r2, r4]               @ Copies the the next alarm time to the current one.
-            @    str r6, [r3, r4]               @ Same for the function.
-            @
-            @    add r4, r4, #4                 @ Sets r4 to check next alarm
-            @    cmp r4, r0                          @ if it exists.
-            @    blo delete_alarm_loop
+            mov r3, r1                          @ R3 also stores the position.
+            mov r2, #0                          @ R2 stores verified length.
+            ldr r3, =ALARMS_TIMES
+            ldr r4, =ALARMS_FUNCTIONS
+            str r2, [r2, r4]                    @ Store 0 in current alarm time.
+            str r2, [r3, r4]                    @ Same for the function pointer.
+            add r2, r2, #4                      @ Updates verified length
+            cmp r2, r0                          @ If there's not another alarm,
+            bgt end_check                           @ Ends the alarm check.
+
+            delete_alarm_loop:
+                add r3, r3, #4                  @ Sets r3 to check the next alarm.
+                ldr r4, =ALARMS_TIMES
+                ldr r5, =ALARMS_FUNCTIONS
+                ldr r6, [r4, r3]                @ R6 stores next alarm time.
+                ldr r7, [r5, r3]                @ R7 next alarm function.
+                sub r3, r3, #4                  @ Sets R3 to current alarm.
+                str r6, [r4, r3]                @ Copies the the next alarm time to the current one.
+                str r7, [r5, r3]                @ Same for the function.
+
+                add r2, r2, #4                  @ Updates verified length.
+                add r3, r3, #4                  @ Sets R3 to check next alarm
+                cmp r2, r0                           @ if it exists.
+                blo delete_alarm_loop
 
         next_alarm:
             add r1, r1, #4                      @ Sets value to check next alarm
@@ -266,7 +265,7 @@ end_irq:
     movs pc, lr
 
 execute_user_function:
-    stmfd sp!, {r4-r12, lr}                 @ Saves current register values.
+    stmfd sp!, {r0-r12, lr}                 @ Saves current register values.
 
     msr CPSR_c, #0x10                       @ Changes to user mode.
 
@@ -277,14 +276,14 @@ execute_user_function:
     mov r7, #12                             @ Syscall to return to IRQ mode.
     svc 0x0
 
-    ldmfd sp!, {r4-r12, lr}                     @ Obtain saved register values.
+    ldmfd sp!, {r0-r12, lr}                     @ Obtain saved register values.
     mov pc, lr
 
 @@@@@@@@@@@@@@@@@@@
 @ Syscalls        @
 @@@@@@@@@@@@@@@@@@@
 SYSCALL_HANDLER:
-    stmfd sp!, {r0-r12, lr}                     @ Save register values.
+    stmfd sp!, {r0-r12, lr}                     @ Save SVC register values.
     mrs r0, SPSR
     stmfd sp!, {r0}                             @ Saves SPSR.
 
@@ -417,8 +416,8 @@ register_proximity_callback:
     str r3, [r1] @ salva novo valor de callbacks
     mov r0, #0 @ coloca valor d eretorno em r0
     ldmfd sp!, {r4-r11, lr}
-    msr CPSR_c, 0x13
 
+    msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
     msr SPSR, r0
     ldmfd sp!, {r0-r12, lr}
@@ -510,10 +509,11 @@ set_motors_speed:
 get_time:
     ldr r0, =TIME_COUNTER
     ldr r0, [r0]                                @ Gets time from TIME_COUNTER pointer.
-    msr CPSR_c, 0x13
 
-    ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
+
+    msr CPSR_c, 0x13
+    ldmfd sp!, {r9}                             @ Get SPSR previous value.
+    msr SPSR, r9                                @ Same for other registers.
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
@@ -524,14 +524,13 @@ set_time:
     str r0, [r1]                                @ Sets up TIME_COUNTER.
     msr CPSR_c, 0x13
 
-    ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
+    ldmfd sp!, {r9}                             @ Get SPSR previous value.
+    msr SPSR, r9                                @ Same for other registers.
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
 set_alarm:
     ldmfd sp!, {r0, r1}
-    stmfd sp!, {r4-r11}
     ldr r2, =ALARMS_NUM                         @ Loads the current number of alarms.
     ldr r2, [r2]
     cmp r2, #MAX_ALARMS                          @ Verifies if we can put one more alarm.
@@ -553,19 +552,18 @@ set_alarm:
     str r0, [r3, r2]                            @ Stores the alarm function pointer.
     ldr r3, =ALARMS_TIMES
     str r1, [r3, r2]                            @ Stores the alarm time.
-    ldmfd sp!, {r4-r11}
     b return_zero
 
 irq_function_request:
     msr CPSR_c, 0x13                            @ Switches to supervisor mode.
 
-    ldmfd sp!, {r0}                             @ Get SPSR previous value.
-    msr SPSR, r0
-    ldmfd sp!, {r0-r12, lr}
-    mov r3, lr                                  @ Obtain supervisor LR.
+    ldmfd sp!, {r9}                             @ Get SPSR previous value.
+    msr SPSR, r9
+    ldmfd sp!, {r0-r12, lr}                     @ Same for other registers.
+    mov r11, lr                                 @ Obtain supervisor LR.
     msr CPSR_c, 0xD2                            @ Switches to IRQ mode.
 
-    mov pc, r3                                  @ Return to supervisor LR
+    mov pc, r11                                 @ Return to supervisor LR
 @@@@@@@@@@@@@@@@@@@@@
 @ Return options    @
 @@@@@@@@@@@@@@@@@@@@@
@@ -574,7 +572,7 @@ return_zero:
     msr CPSR_c, 0x13
 
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
+    msr SPSR, r4
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
@@ -582,7 +580,7 @@ return_minus_one:
     mov r0, #-1
     msr CPSR_c, 0x13
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
+    msr SPSR, r4
     ldmfd sp!, {r0-r12, lr}
     movs pc, lr
 
