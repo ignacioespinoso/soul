@@ -199,7 +199,7 @@ IRQ_HANDLER:
         ldr r0, =ALARMS_NUM                     @ Does the system have any alarm?
         ldr r0, [r0]
         cmp r0, #0
-        beq end_check                           @ Jumps to the end if it doesnt.
+        beq callbacks_check                     @ Jumps to the end if it doesnt.
 
         mov r1, #4
         mul r0, r1, r0                          @ r0 stores the alarm vector size.
@@ -224,11 +224,11 @@ IRQ_HANDLER:
             mov r2, #0                          @ R2 stores verified length.
             ldr r3, =ALARMS_TIMES
             ldr r4, =ALARMS_FUNCTIONS
-            str r2, [r3]                    @ Store 0 in current alarm time.
-            str r2, [r4]                    @ Same for the function pointer.
+            str r2, [r3]                        @ Store 0 in current alarm time.
+            str r2, [r4]                        @ Same for the function pointer.
             add r2, r2, #4                      @ Updates verified length
             cmp r2, r0                          @ If there's not another alarm,
-            bgt end_check                           @ Ends the alarm check.
+            bgt callbacks_check                     @ Ends the alarm check.
 
             mov r3, r1
             delete_alarm_loop:
@@ -257,10 +257,54 @@ IRQ_HANDLER:
             cmp r1, r0                              @ if it exists.
             blo alarms_loop
 
-        end_check:
-            ldr r0, =INTERRUPTION_IS_ACTIVE
-            mov r1, #0                        @ No verification is being run
-            str r1, [r0]                            @ anymore.
+
+    callbacks_check:
+        ldr r4, =ACTIVE_CALLBACKS
+        ldr r4, [r4] @ coloca numero de active callbacks em r4
+        mov r5, #0 @ zera r5 -> contador
+
+callbacks_loop:
+    cmp r4, r5 @ comapra contador com numero de callbacks
+    beq end_loop
+
+    ldr r6, =CALLBACK_SONARS
+    ldrb r6, [r6, r5] @ coloca id do sonar em rd
+
+    msr CPSR_c, 0x1F @ muda para modo system
+    sub r10, sp, #4
+    ldr r9, [r10] @ salva elemento antes da pilha
+    mov r10, lr
+    stmfd sp!, {r6} @ empilha id do sonar
+    mov r7, #16
+    svc 0x0 @ chama read sonar
+    str r9, [sp] @ coloca elemento de volta antes da pilha
+    add sp, sp, #4 @ conserta endereco de sp
+    msr CPSR_c, 0xD2 @ volta pra modo IRQ
+    @ distancia esta em r0
+
+
+    ldr r6, =CALLBACK_THRESHOLDS
+    mov r8, #2
+    mul r8, r5, r8 @ multiplica contador por 2
+    ldrh r3, [r6, r8] @ coloca threshold em r3
+    cmp r0, r3
+    addhi r5, r5, #1 @ se distancia maior q threshold, incrementa e continua
+    bhi callbacks_loop
+
+    ldr r6, =CALLBACK_FUNCTIONS
+    mov r8, #4
+    mul r8, r5, r8
+    ldr r0, [r6, r8] @ coloca em r0 o ponteiro da funcao respectiva
+    stmfd sp!, {r4-r11, lr}
+    bl execute_user_function @ executa funcao em modo apropriado e retorna
+    ldmfd sp!, {r4-r11, lr}
+    add r5, r5, #1 @ incrementa contador
+    b callbacks_loop
+
+end_loop:
+    ldr r0, =INTERRUPTION_IS_ACTIVE
+    mov r1, #0                        @ No verification is being run
+    str r1, [r0]                            @ anymore.
 
 end_irq:
     ldmfd sp!, {r0}                   @ Get SPSR previous value.
@@ -317,13 +361,12 @@ SYSCALL_HANDLER:
     movs pc, lr
 
 read_sonar:
-    ldmfd sp!, {r0} @ desempilha parametro dado e coloca em r0
-    stmfd sp!, {r4-r11, lr} @ salva registradores
+    ldr r0, [sp]    @Le o parametro dado
     ldr r2, =VALIDATE_ID_MASK
     and r1, r0, r2 @ valida id do sonar
     cmp r1, #0
     bne return_minus_one
-
+    stmfd sp!, {r4-r11, lr} @ salva registradores
     @@@ seleciona sonar desejado para leitura
     ldr r1, =GPIO_BASE @ coloca base do GPIO em r1
     lsl r0, #2 @desloca bits para escrita em MUX
@@ -387,7 +430,10 @@ check_flag:
     movs pc, lr @ retorna
 
 register_proximity_callback:
-    ldmfd sp!, {r0, r1, r2}
+
+    ldr r0, [sp]
+    ldr r1, [sp, #4]
+    ldr r2, [sp, #8]
     @P0: Identificador do sonar (valores válidos: 0 a 15).
     @P1: Limiar de distância (veja descrição em api_robot2.h).
     @P2: ponteiro para função a ser chamada na ocorrência do alarme.
@@ -395,7 +441,7 @@ register_proximity_callback:
     ldr r3, =VALIDATE_ID_MASK @ coloca mascara em r4
     and r3, r3, r0 @ zera primeiros 4 bits do ID
     cmp r3, #0 @ verifica se numero era maior q 4 bits -> invalido
-    beq return_minus_two @ caso afirmativo, retorna
+    bne return_minus_two @ caso afirmativo, retorna
 
     ldr r3, =ACTIVE_CALLBACKS
     ldr r3, [r3] @ coloca valor do callback counter em r3
@@ -405,14 +451,14 @@ register_proximity_callback:
     stmfd sp!, {r4-r11, lr} @ empilha registradores
 
     ldr r4, =CALLBACK_SONARS @ coloca endereco de vetor de sonares em r4
-    str r0, [r4, r3] @ guarda identificador do sonar em lugar apropriado
+    strb r0, [r4, r3] @ guarda identificador do sonar em lugar apropriado
 
     ldr r4, =CALLBACK_THRESHOLDS
     mov r5, #2
     mul r5, r3, r5 @ multiplica numero de callbacks por 2
-    str r1, [r4, r5]
+    strh r1, [r4, r5]
 
-    ldr r4, =CALLBACK_FUNCIONS
+    ldr r4, =CALLBACK_FUNCTIONS
     mov r5, #4
     mul r5, r3, r5 @ multiplica numero de callbacks por 4
     str r2, [r4, r5]
@@ -420,18 +466,12 @@ register_proximity_callback:
     ldr r1, =ACTIVE_CALLBACKS @ carrega endereço do contador de callbacks em r1
     add r3, r3, #1 @ incrementa numero de callbacks
     str r3, [r1] @ salva novo valor de callbacks
-    mov r0, #0 @ coloca valor d eretorno em r0
     ldmfd sp!, {r4-r11, lr}
-
-    msr CPSR_c, 0x13
-    ldmfd sp!, {r0}                   @ Get SPSR previous value.
-    msr SPSR, r0
-    ldmfd sp!, {r1-r12, lr}
-    movs pc, lr
+    b return_zero
 
 set_motor_speed:
-    ldmfd sp!, {r0, r1}
-
+    ldr r0, [sp]
+    ldr r1, [sp, #4]
     @ Checks if speed is valid.
 
     cmp r1, #MAX_SPEED
@@ -479,7 +519,8 @@ set_motor_speed:
     b return_zero
 
 set_motors_speed:
-    ldmfd sp!, {r0, r1}
+    ldr r0, [sp]
+    ldr r1, [sp, #4]
 
     @ Verifies if the speeds are valid.
     cmp r0, #MAX_SPEED
@@ -524,7 +565,7 @@ get_time:
     movs pc, lr
 
 set_time:
-    ldmfd sp!, {r0}
+    ldr r0, [sp]
     ldr r1, =TIME_COUNTER                       @ Gets TIME_COUNTER pointer.
 
     str r0, [r1]                                @ Sets up TIME_COUNTER.
@@ -536,7 +577,10 @@ set_time:
     movs pc, lr
 
 set_alarm:
-    ldmfd sp!, {r0, r1}
+    ldr r0, [sp]
+    ldr r1, [sp, #4]
+    stmfd sp!, {r4, r11}
+
     ldr r2, =ALARMS_NUM                         @ Loads the current number of alarms.
     ldr r2, [r2]
     cmp r2, #MAX_ALARMS                          @ Verifies if we can put one more alarm.
@@ -558,6 +602,7 @@ set_alarm:
     str r0, [r3, r2]                            @ Stores the alarm function pointer.
     ldr r3, =ALARMS_TIMES
     str r1, [r3, r2]                            @ Stores the alarm time.
+    ldmfd sp!, {r4, r11}
     b return_zero
 
 irq_function_request:
@@ -629,7 +674,7 @@ ALARMS_FUNCTIONS:
 ALARMS_TIMES:
     .space ALARMS_ARRAY_SIZE
 
-CALLBACK_FUNCIONS:
+CALLBACK_FUNCTIONS:
     .space CALLBACK_ARRAY_SIZE
 CALLBACK_SONARS:
     .space MAX_CALLBACKS
